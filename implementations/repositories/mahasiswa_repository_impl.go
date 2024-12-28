@@ -35,6 +35,10 @@ func (r *mahasiswaRepositoryImpl) Create(mahasiswa entities.Mahasiswa) (entities
 	return mahasiswa, err
 }
 
+func (r *mahasiswaRepositoryImpl) WithTransaction() *gorm.DB {
+	return r.db
+}
+
 // Update memperbarui informasi mahasiswa berdasarkan ID
 func (r *mahasiswaRepositoryImpl) Update(NPM uint, mahasiswa entities.Mahasiswa) (entities.Mahasiswa, error) {
 	var existingMahasiswa entities.Mahasiswa

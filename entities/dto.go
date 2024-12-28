@@ -68,3 +68,25 @@ type MahasiswaResponse struct {
 	StatusMahasiswa string       `json:"status_mahasiswa"` // Status mahasiswa
 	User            UserResponse `json:"user"`             // Informasi pengguna terkait
 }
+
+type CreateManajementRequest struct {
+	NIP          uint              `json:"nip"`
+	Nama         string            `json:"nama"`
+	TanggalLahir string            `json:"tanggal_lahir" time_format:"2006-01-02"`
+	JenisKelamin string            `json:"jenis_kelamin"`
+	User         CreateUserRequest `json:"user"` // Menambahkan data user
+}
+type UpdateManajementRequest struct {
+	NIP          uint              `json:"nip"`
+	Nama         string            `json:"nama"`
+	TanggalLahir string            `json:"tanggal_lahir" time_format:"2006-01-02"`
+	JenisKelamin string            `json:"jenis_kelamin"`
+	User         UpdateUserRequest `json:"user"` // Menambahkan data user
+}
+type ManajementResponse struct {
+	NIP          uint         `json:"nip"`           // Nomor Pokok Mahasiswa
+	Nama         string       `json:"nama"`          // Nama mahasiswa
+	TanggalLahir string       `json:"tanggal_lahir"` // Tanggal lahir mahasiswa
+	JenisKelamin string       `json:"jenis_kelamin"` // Jenis kelamin mahasiswa
+	User         UserResponse `json:"user"`          // Informasi pengguna terkait
+}

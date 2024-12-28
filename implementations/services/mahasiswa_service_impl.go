@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
@@ -62,41 +63,68 @@ func (s *mahasiswaServiceImpl) GetMahasiswaByID(NPM uint) (entities.MahasiswaRes
 	return mapMahasiswaToResponse(mahasiswa, user), nil
 }
 
-// CreateMahasiswa membuat data mahasiswa baru
 func (s *mahasiswaServiceImpl) CreateMahasiswa(request entities.CreateMahasiswaRequest) (entities.MahasiswaResponse, error) {
-	// Buat data user
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.User.Password), bcrypt.DefaultCost)
-	fmt.Print(request.TanggalMasuk)
-	user := entities.User{
-		Username: request.User.Username,
-		Email:    request.User.Email,
-		Password: string(hashedPassword),
-		Role:     "mahasiswa",
-	}
-	createdUser, err := s.userRepository.Create(user)
-	if err != nil {
-		return entities.MahasiswaResponse{}, utils.ErrInternal
-	}
-	tanggalMasuk, err := time.Parse("2006-01-02", request.TanggalMasuk)
-	tanggalLahir, err := time.Parse("2006-01-02", request.TanggalMasuk)
-	fmt.Print(request)
-	// Buat data mahasiswa
-	mahasiswa := entities.Mahasiswa{
-		NPM:             request.NPM,
-		Nama:            request.Nama,
-		TanggalLahir:    tanggalLahir,
-		Fakultas:        request.Fakultas,
-		Jurusan:         request.Jurusan,
-		TanggalMasuk:    tanggalMasuk,
-		JenisKelamin:    request.JenisKelamin,
-		StatusMahasiswa: request.StatusMahasiswa,
-		UserID:          createdUser.ID,
-	}
-	createdMahasiswa, err := s.mahasiswaRepository.Create(mahasiswa)
+	var createdMahasiswa entities.Mahasiswa
+	var createdUser entities.User
+
+	// Akses instance DB langsung dari repositori
+	db := s.mahasiswaRepository.WithTransaction() // Pastikan repositori menyediakan akses ke DB
+
+	// Gunakan transaksi GORM
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Hash password user
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.User.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		// Buat data user
+		user := entities.User{
+			Username: request.User.Username,
+			Email:    request.User.Email,
+			Password: string(hashedPassword),
+			Role:     "mahasiswa",
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		createdUser = user
+
+		// Parse tanggal
+		tanggalMasuk, err := time.Parse("2006-01-02", request.TanggalMasuk)
+		if err != nil {
+			return err
+		}
+		tanggalLahir, err := time.Parse("2006-01-02", request.TanggalLahir)
+		if err != nil {
+			return err
+		}
+
+		// Buat data mahasiswa
+		mahasiswa := entities.Mahasiswa{
+			NPM:             request.NPM,
+			Nama:            request.Nama,
+			TanggalLahir:    tanggalLahir,
+			Fakultas:        request.Fakultas,
+			Jurusan:         request.Jurusan,
+			TanggalMasuk:    tanggalMasuk,
+			JenisKelamin:    request.JenisKelamin,
+			StatusMahasiswa: request.StatusMahasiswa,
+			UserID:          user.ID,
+		}
+		if err := tx.Create(&mahasiswa).Error; err != nil {
+			return err
+		}
+		createdMahasiswa = mahasiswa
+
+		return nil
+	})
+
 	if err != nil {
 		return entities.MahasiswaResponse{}, utils.ErrInternal
 	}
 
+	// Kembalikan response
 	return mapMahasiswaToResponse(createdMahasiswa, createdUser), nil
 }
 

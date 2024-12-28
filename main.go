@@ -39,12 +39,19 @@ func main() {
 	mahasiswaUsecase := usecases.MahasiswaUseCase(mahasiswaService)
 	mahasiswaController := controllers.NewMahasiswaController(mahasiswaUsecase)
 
+	log.Println("Initializing User repository, service, and use case...")
+	manajementRepository := repositories.NewManajementRepository(config.DB)
+	manajementService := services.NewManajementService(manajementRepository, userRepository)
+	manajementUsecase := usecases.ManajementUseCase(manajementService)
+	manajementController := controllers.NewManajementController(manajementUsecase)
+
 	// Set up Router
 	log.Println("Setting up routes...")
 	router := gin.Default()
 	infrastructure.RegisterUserRoutes(router, userController)
 	infrastructure.RegisterKamarRoutes(router, kamarController)
 	infrastructure.RegisterMahasiswaRoutes(router, mahasiswaController)
+	infrastructure.RegisterManajementRoutes(router, manajementController)
 
 	// Jalankan server pada port 3000
 	log.Println("Starting server on port 3000...")

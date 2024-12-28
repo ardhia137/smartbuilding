@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"net/http"
 	"smartbuilding/entities"
 	"smartbuilding/usecases"
@@ -61,7 +62,6 @@ func (c *MahasiswaController) GetMahasiswaByID(ctx *gin.Context) {
 		"data":    mahasiswa,
 	})
 }
-
 func (c *MahasiswaController) CreateMahasiswa(ctx *gin.Context) {
 	var request entities.CreateMahasiswaRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -72,8 +72,19 @@ func (c *MahasiswaController) CreateMahasiswa(ctx *gin.Context) {
 		})
 		return
 	}
+
 	mahasiswa, err := c.mahasiswaUseCase.CreateMahasiswa(request)
 	if err != nil {
+		// Tangani error spesifik
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+			ctx.JSON(http.StatusConflict, gin.H{
+				"status":  "error",
+				"message": "Duplicate entry error",
+				"error":   mysqlErr.Message,
+			})
+			return
+		}
+
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
 			"message": "Failed to create mahasiswa",
@@ -81,6 +92,7 @@ func (c *MahasiswaController) CreateMahasiswa(ctx *gin.Context) {
 		})
 		return
 	}
+
 	ctx.JSON(http.StatusCreated, gin.H{
 		"status":  "success",
 		"message": "Mahasiswa created successfully",
