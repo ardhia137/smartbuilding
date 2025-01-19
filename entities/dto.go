@@ -1,5 +1,7 @@
 package entities
 
+import "time"
+
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required"`                              // Username pengguna
 	Email    string `json:"email" binding:"required,email"`                           // Email valid diperlukan
@@ -89,4 +91,34 @@ type ManajementResponse struct {
 	TanggalLahir string       `json:"tanggal_lahir"` // Tanggal lahir mahasiswa
 	JenisKelamin string       `json:"jenis_kelamin"` // Jenis kelamin mahasiswa
 	User         UserResponse `json:"user"`          // Informasi pengguna terkait
+}
+
+type CreatePenyewaKamarRequest struct {
+	ID           uint   `json:"id"`
+	NPM          uint   `json:"npm"`                                    // Relasi ke tabel user
+	KamarID      uint   `json:"kamar_id"`                               // Relasi ke tabel kamar
+	TanggalMulai string `json:"tanggal_mulai" time_format:"2006-01-02"` // Tanggal mulai sewa
+	Status       string `json:"status"`                                 // Status penyewa kamar
+}
+type UpdatePenyewaKamarRequest struct {
+	ID            uint   `json:"id"`
+	NPM           uint   `json:"npm"`                                     // Relasi ke tabel user
+	KamarID       uint   `json:"kamar_id"`                                // Relasi ke tabel kamar
+	TanggalMulai  string `json:"tanggal_mulai" time_format:"2006-01-02"`  // Tanggal mulai sewa
+	TanggalKeluar string `json:"tanggal_keluar" time_format:"2006-01-02"` // Tanggal mulai sewa
+	Status        string `json:"status"`                                  // Status penyewa kamar
+}
+type PenyewaKamarResponse struct {
+	ID            uint      `json:"id"`
+	NPM           uint      `json:"npm"`
+	KamarID       uint      `json:"kamar_id"`
+	TanggalMulai  string    `json:"tanggal_mulai"`
+	TanggalKeluar string    `json:"tanggal_keluar"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+
+	// Relasi
+	Mahasiswa MahasiswaResponse `json:"mahasiswa"` // DTO untuk User
+	Kamar     KamarResponse     `json:"kamar"`     // DTO untuk Kamar
 }

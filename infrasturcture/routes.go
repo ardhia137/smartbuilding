@@ -54,3 +54,16 @@ func RegisterManajementRoutes(router *gin.Engine, manajementController *controll
 		mahasiswaRoutes.DELETE("/:NIP", manajementController.DeleteManajement)
 	}
 }
+
+func RegisterPenyewaKamarRoutes(router *gin.Engine, penyewaKamarController *controllers.PenyewaKamarController) {
+	apiGroup := router.Group("/api") // Tambahkan prefix /api
+
+	mahasiswaRoutes := apiGroup.Group("/penyewa_kamar")
+	{
+		mahasiswaRoutes.GET("", penyewaKamarController.GetAllPenyewaKamars)
+		mahasiswaRoutes.POST("", penyewaKamarController.CreatePenyewaKamar)
+		mahasiswaRoutes.GET("/:id", penyewaKamarController.GetPenyewaKamarByID)
+		mahasiswaRoutes.PUT("/:id", penyewaKamarController.UpdatePenyewaKamar)
+		mahasiswaRoutes.DELETE("/:id", penyewaKamarController.DeletePenyewaKamar)
+	}
+}

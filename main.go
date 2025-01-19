@@ -45,6 +45,12 @@ func main() {
 	manajementUsecase := usecases.ManajementUseCase(manajementService)
 	manajementController := controllers.NewManajementController(manajementUsecase)
 
+	log.Println("Initializing penyewa kamar repository, service, and use case...")
+	penyewaKamarRepository := repositories.NewPenyewaKamarRepository(config.DB)
+	penyewaKamarService := services.NewPenyewaKamarService(penyewaKamarRepository, kamarRepository, userRepository, mahasiswaRepository)
+	penyewaKamarUsecase := usecases.PenyewaKamarUseCase(penyewaKamarService)
+	penyewaKamarController := controllers.NewPenyewaKamarController(penyewaKamarUsecase)
+
 	// Set up Router
 	log.Println("Setting up routes...")
 	router := gin.Default()
@@ -52,6 +58,7 @@ func main() {
 	infrastructure.RegisterKamarRoutes(router, kamarController)
 	infrastructure.RegisterMahasiswaRoutes(router, mahasiswaController)
 	infrastructure.RegisterManajementRoutes(router, manajementController)
+	infrastructure.RegisterPenyewaKamarRoutes(router, penyewaKamarController)
 
 	// Jalankan server pada port 3000
 	log.Println("Starting server on port 3000...")
