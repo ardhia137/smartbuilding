@@ -9,24 +9,21 @@ import (
 	"smartbuilding/implementations/services"
 	"smartbuilding/infrasturcture"
 	"smartbuilding/usecases"
+	"smartbuilding/utils"
 )
 
 func main() {
-	// Logging untuk memulai aplikasi
 	log.Println("Starting application...")
 
-	// Inisialisasi koneksi database
 	log.Println("Connecting to the database...")
 	config.InitDB()
 
-	// Inisialisasi Repository, Service, dan UseCase untuk User
 	log.Println("Initializing User repository, service, and use case...")
 	userRepository := repositories.NewUserRepository(config.DB)
 	userService := services.NewUserService(userRepository)
 	userUseCase := usecases.UserUseCase(userService)
 	userController := controllers.NewUserController(userUseCase)
 
-	// Inisialisasi Repository, Service, dan UseCase untuk User
 	log.Println("Initializing User repository, service, and use case...")
 	kamarRepository := repositories.NewKamarRepository(config.DB)
 	kamarService := services.NewKamarService(kamarRepository)
@@ -51,7 +48,27 @@ func main() {
 	penyewaKamarUsecase := usecases.PenyewaKamarUseCase(penyewaKamarService)
 	penyewaKamarController := controllers.NewPenyewaKamarController(penyewaKamarUsecase)
 
-	// Set up Router
+	log.Println("Initializing auth repository, service, and use case...")
+	authRepository := repositories.NewAuthRepository(config.DB)
+	authService := services.NewAuthService(authRepository)
+	authUsecase := usecases.AuthUseCase(authService)
+	authController := controllers.NewAuthController(authUsecase)
+
+	log.Println("Initializing monitoring data repository, service, and use case...")
+	monitoringDataRepository := repositories.NewMonitoringDataRepository(config.DB)
+	monitoringDataService := services.NewMonitoringDataService(monitoringDataRepository)
+	monitoringDataUsecase := usecases.MonitoringDataUseCase(monitoringDataService)
+	monitoringDataController := controllers.NewMonitoringDataController(monitoringDataUsecase)
+
+	log.Println("Initializing monitoring data repository, service, and use case...")
+	settingRepository := repositories.NewSettingRepository(config.DB)
+	settingService := services.NewSettingService(settingRepository)
+	settingUsecase := usecases.SettingUseCase(settingService)
+	settingController := controllers.NewSettingController(settingUsecase)
+
+	log.Println("Starting Monitoring Data cron job in the background...")
+	go utils.StartMonitoringDataJob(monitoringDataUsecase, settingUsecase, monitoringDataRepository)
+
 	log.Println("Setting up routes...")
 	router := gin.Default()
 	infrastructure.RegisterUserRoutes(router, userController)
@@ -59,8 +76,10 @@ func main() {
 	infrastructure.RegisterMahasiswaRoutes(router, mahasiswaController)
 	infrastructure.RegisterManajementRoutes(router, manajementController)
 	infrastructure.RegisterPenyewaKamarRoutes(router, penyewaKamarController)
+	infrastructure.RegisterAuthRoutes(router, authController)
+	infrastructure.RegisterMonitoringDataRoutes(router, monitoringDataController)
+	infrastructure.RegisterSettingRoutes(router, settingController)
 
-	// Jalankan server pada port 3000
 	log.Println("Starting server on port 3000...")
 	err := router.Run(":3000")
 	if err != nil {
@@ -68,5 +87,4 @@ func main() {
 	} else {
 		log.Println("Server is running on port 3000")
 	}
-
 }

@@ -14,7 +14,6 @@ type User struct {
 	UpdatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
 }
 
-// Method TableName untuk menetapkan nama tabel yang berbeda
 func (User) TableName() string {
-	return "user" // Nama tabel yang Anda inginkan
+	return "user"
 }

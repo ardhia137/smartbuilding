@@ -75,7 +75,6 @@ func (c *MahasiswaController) CreateMahasiswa(ctx *gin.Context) {
 
 	mahasiswa, err := c.mahasiswaUseCase.CreateMahasiswa(request)
 	if err != nil {
-		// Tangani error spesifik
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
 			ctx.JSON(http.StatusConflict, gin.H{
 				"status":  "error",

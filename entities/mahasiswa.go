@@ -13,12 +13,11 @@ type Mahasiswa struct {
 	TanggalMasuk    time.Time `gorm:"type:date;not null" json:"tanggal_masuk"`
 	JenisKelamin    string    `gorm:"type:enum('perempuan', 'laki-laki');not null" json:"jenis_kelamin"`
 	StatusMahasiswa string    `gorm:"type:enum('aktif', 'tidak aktif');not null" json:"status_mahasiswa"`
-	UserID          uint      `gorm:"not null" json:"user_id"` // Relasi ke tabel user
+	UserID          uint      `gorm:"not null" json:"user_id"`
 	CreatedAt       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
 	UpdatedAt       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
 
-	// Relasi
-	User User `gorm:"foreignKey:UserID" json:"user"` // Asumsi tabel user menggunakan entitas User
+	User User `gorm:"foreignKey:UserID" json:"user"`
 }
 
 func (Mahasiswa) TableName() string {

@@ -11,13 +11,11 @@ import (
 	"time"
 )
 
-// mahasiswaServiceImpl adalah struktur implementasi MahasiswaService
 type mahasiswaServiceImpl struct {
 	mahasiswaRepository repositories.MahasiswaRepository
 	userRepository      repositories.UserRepository
 }
 
-// NewMahasiswaService membuat instance dari MahasiswaService
 func NewMahasiswaService(
 	mahasiswaRepo repositories.MahasiswaRepository,
 	userRepo repositories.UserRepository,
@@ -28,7 +26,6 @@ func NewMahasiswaService(
 	}
 }
 
-// GetAllMahasiswa mengembalikan semua data mahasiswa
 func (s *mahasiswaServiceImpl) GetAllMahasiswa() ([]entities.MahasiswaResponse, error) {
 	mahasiswas, err := s.mahasiswaRepository.FindAll()
 	if err != nil {
@@ -47,7 +44,6 @@ func (s *mahasiswaServiceImpl) GetAllMahasiswa() ([]entities.MahasiswaResponse, 
 	return mahasiswaResponses, nil
 }
 
-// GetMahasiswaByID mengembalikan informasi mahasiswa berdasarkan ID
 func (s *mahasiswaServiceImpl) GetMahasiswaByID(NPM uint) (entities.MahasiswaResponse, error) {
 	fmt.Print(NPM)
 	mahasiswa, err := s.mahasiswaRepository.FindByID(NPM)
@@ -67,18 +63,14 @@ func (s *mahasiswaServiceImpl) CreateMahasiswa(request entities.CreateMahasiswaR
 	var createdMahasiswa entities.Mahasiswa
 	var createdUser entities.User
 
-	// Akses instance DB langsung dari repositori
-	db := s.mahasiswaRepository.WithTransaction() // Pastikan repositori menyediakan akses ke DB
+	db := s.mahasiswaRepository.WithTransaction()
 
-	// Gunakan transaksi GORM
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// Hash password user
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.User.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return err
 		}
 
-		// Buat data user
 		user := entities.User{
 			Username: request.User.Username,
 			Email:    request.User.Email,
@@ -90,7 +82,6 @@ func (s *mahasiswaServiceImpl) CreateMahasiswa(request entities.CreateMahasiswaR
 		}
 		createdUser = user
 
-		// Parse tanggal
 		tanggalMasuk, err := time.Parse("2006-01-02", request.TanggalMasuk)
 		if err != nil {
 			return err
@@ -100,7 +91,6 @@ func (s *mahasiswaServiceImpl) CreateMahasiswa(request entities.CreateMahasiswaR
 			return err
 		}
 
-		// Buat data mahasiswa
 		mahasiswa := entities.Mahasiswa{
 			NPM:             request.NPM,
 			Nama:            request.Nama,
@@ -124,13 +114,10 @@ func (s *mahasiswaServiceImpl) CreateMahasiswa(request entities.CreateMahasiswaR
 		return entities.MahasiswaResponse{}, utils.ErrInternal
 	}
 
-	// Kembalikan response
 	return mapMahasiswaToResponse(createdMahasiswa, createdUser), nil
 }
 
-// UpdateMahasiswa memperbarui data mahasiswa dan data pengguna terkait berdasarkan ID
 func (s *mahasiswaServiceImpl) UpdateMahasiswa(NPM uint, request entities.UpdateMahasiswaRequest) (entities.MahasiswaResponse, error) {
-	// Cari data mahasiswa
 	mahasiswa, err := s.mahasiswaRepository.FindByID(NPM)
 	if err != nil {
 		return entities.MahasiswaResponse{}, utils.ErrNotFound
@@ -139,7 +126,7 @@ func (s *mahasiswaServiceImpl) UpdateMahasiswa(NPM uint, request entities.Update
 	tanggalLahir, err := time.Parse("2006-01-02", request.TanggalMasuk)
 	fmt.Print(request.TanggalMasuk)
 	fmt.Print(tanggalMasuk)
-	// Perbarui data mahasiswa
+
 	mahasiswa.NPM = request.NPM
 	mahasiswa.Nama = request.Nama
 	mahasiswa.TanggalLahir = tanggalLahir
@@ -149,47 +136,38 @@ func (s *mahasiswaServiceImpl) UpdateMahasiswa(NPM uint, request entities.Update
 	mahasiswa.JenisKelamin = request.JenisKelamin
 	mahasiswa.StatusMahasiswa = request.StatusMahasiswa
 
-	// Update data mahasiswa
 	updatedMahasiswa, err := s.mahasiswaRepository.Update(NPM, mahasiswa)
 	if err != nil {
 		return entities.MahasiswaResponse{}, utils.ErrInternal
 	}
 
-	// Perbarui data user terkait dengan mahasiswa
 	user, err := s.userRepository.FindByID(mahasiswa.UserID)
 	if err != nil {
 		return entities.MahasiswaResponse{}, utils.ErrInternal
 	}
 
-	// Perbarui data user
 	user.Username = request.User.Username
 	user.Email = request.User.Email
 
-	// Update data user
 	updatedUser, err := s.userRepository.Update(user.ID, user)
 	if err != nil {
 		return entities.MahasiswaResponse{}, utils.ErrInternal
 	}
 
-	// Mengembalikan response mahasiswa yang telah diperbarui beserta data user-nya
 	return mapMahasiswaToResponse(updatedMahasiswa, updatedUser), nil
 }
 
-// DeleteMahasiswa menghapus data mahasiswa berdasarkan ID
 func (s *mahasiswaServiceImpl) DeleteMahasiswa(NPM uint) error {
-	// Cari data mahasiswa
 	mahasiswa, err := s.mahasiswaRepository.FindByID(NPM)
 	if err != nil {
 		return utils.ErrNotFound
 	}
 
-	// Hapus data mahasiswa
 	err = s.mahasiswaRepository.Delete(NPM)
 	if err != nil {
 		return utils.ErrInternal
 	}
 
-	// Hapus data user terkait
 	err = s.userRepository.Delete(mahasiswa.User.ID)
 	if err != nil {
 		return utils.ErrInternal
@@ -198,7 +176,6 @@ func (s *mahasiswaServiceImpl) DeleteMahasiswa(NPM uint) error {
 	return nil
 }
 
-// mapMahasiswaToResponse memetakan entitas Mahasiswa dan User ke DTO MahasiswaResponse
 func mapMahasiswaToResponse(mahasiswa entities.Mahasiswa, user entities.User) entities.MahasiswaResponse {
 	return entities.MahasiswaResponse{
 		NPM:             mahasiswa.NPM,
