@@ -71,6 +71,20 @@ func main() {
 
 	log.Println("Setting up routes...")
 	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Max-Age", "300")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
 	infrastructure.RegisterUserRoutes(router, userController)
 	infrastructure.RegisterKamarRoutes(router, kamarController)
 	infrastructure.RegisterMahasiswaRoutes(router, mahasiswaController)
@@ -82,6 +96,7 @@ func main() {
 
 	log.Println("Starting server on port 3000...")
 	err := router.Run(":3000")
+
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	} else {

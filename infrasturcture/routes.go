@@ -7,9 +7,9 @@ import (
 )
 
 func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	userRoutes := apiGroup.Group("/users")
-	userRoutes.Use(utils.RoleMiddleware("admin")) // Hanya admin yang bisa mengakses
+	userRoutes.Use(utils.RoleMiddleware("admin"))
 	{
 		userRoutes.GET("", userController.GetAllUsers)
 		userRoutes.POST("", userController.CreateUser)
@@ -20,9 +20,9 @@ func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserCont
 }
 
 func RegisterKamarRoutes(router *gin.Engine, kamarController *controllers.KamarController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	kamarRoutes := apiGroup.Group("/kamar")
-	kamarRoutes.Use(utils.RoleMiddleware("admin", "manajemen")) // Admin dan manajemen bisa mengakses
+	kamarRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
 		kamarRoutes.GET("", kamarController.GetAllKamars)
 		kamarRoutes.POST("", kamarController.CreateKamar)
@@ -33,9 +33,9 @@ func RegisterKamarRoutes(router *gin.Engine, kamarController *controllers.KamarC
 }
 
 func RegisterMahasiswaRoutes(router *gin.Engine, mahasiswaController *controllers.MahasiswaController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	mahasiswaRoutes := apiGroup.Group("/mahasiswa")
-	mahasiswaRoutes.Use(utils.RoleMiddleware("admin", "manajemen")) // Admin dan manajemen bisa mengakses
+	mahasiswaRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
 		mahasiswaRoutes.GET("", mahasiswaController.GetAllMahasiswas)
 		mahasiswaRoutes.POST("", mahasiswaController.CreateMahasiswa)
@@ -46,9 +46,9 @@ func RegisterMahasiswaRoutes(router *gin.Engine, mahasiswaController *controller
 }
 
 func RegisterManajementRoutes(router *gin.Engine, manajementController *controllers.ManajementController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	manajementRoutes := apiGroup.Group("/manajement")
-	manajementRoutes.Use(utils.RoleMiddleware("admin", "manajemen")) // Admin dan manajemen bisa mengakses
+	manajementRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
 		manajementRoutes.GET("", manajementController.GetAllManajements)
 		manajementRoutes.POST("", manajementController.CreateManajement)
@@ -59,9 +59,9 @@ func RegisterManajementRoutes(router *gin.Engine, manajementController *controll
 }
 
 func RegisterPenyewaKamarRoutes(router *gin.Engine, penyewaKamarController *controllers.PenyewaKamarController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	penyewaKamarRoutes := apiGroup.Group("/penyewa_kamar")
-	penyewaKamarRoutes.Use(utils.RoleMiddleware("admin", "manajemen")) // Admin dan manajemen bisa mengakses
+	penyewaKamarRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
 		penyewaKamarRoutes.GET("", penyewaKamarController.GetAllPenyewaKamars)
 		penyewaKamarRoutes.POST("", penyewaKamarController.CreatePenyewaKamar)
@@ -71,32 +71,34 @@ func RegisterPenyewaKamarRoutes(router *gin.Engine, penyewaKamarController *cont
 	}
 }
 func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	authRoutes := apiGroup.Group("/auth")
 	{
-		authRoutes.POST("/login", authController.Login)   // Route untuk login
-		authRoutes.POST("/logout", authController.Logout) // Route untuk logout
+		authRoutes.POST("/login", authController.Login)
+		authRoutes.POST("/logout", authController.Logout)
 	}
 }
 
 func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {
-	apiRoutes := router.Group("/api") // Tambahkan prefix /api
+	apiRoutes := router.Group("/api")
+	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
-		apiRoutes.GET("/monitoring_air", monitoringDataController.GetAirMonitoringData)         // Route untuk login
-		apiRoutes.GET("/monitoring_listrik", monitoringDataController.GetListrikMonitoringData) // Route untuk login
+		apiRoutes.GET("/monitoring_air", monitoringDataController.GetAirMonitoringData)
+		apiRoutes.GET("/monitoring_listrik", monitoringDataController.GetListrikMonitoringData)
 
 	}
 }
 
 func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.SettingController) {
-	apiGroup := router.Group("/api") // Tambahkan prefix /api
+	apiGroup := router.Group("/api")
 	settingRoutes := apiGroup.Group("/setting")
+	settingRoutes.Use(utils.RoleMiddleware("admin"))
 	{
-		settingRoutes.GET("", settingController.GetAllSetting)        // Route untuk login
-		settingRoutes.POST("", settingController.CreateSetting)       // Route untuk login
-		settingRoutes.GET("/:id", settingController.GetSettingByID)   // Route untuk login
-		settingRoutes.PUT("/:id", settingController.UpdateSetting)    // Route untuk login
-		settingRoutes.DELETE("/:id", settingController.DeleteSetting) // Route untuk login
+		settingRoutes.GET("", settingController.GetAllSetting)
+		settingRoutes.POST("", settingController.CreateSetting)
+		settingRoutes.GET("/:id", settingController.GetSettingByID)
+		settingRoutes.PUT("/:id", settingController.UpdateSetting)
+		settingRoutes.DELETE("/:id", settingController.DeleteSetting)
 
 	}
 }
