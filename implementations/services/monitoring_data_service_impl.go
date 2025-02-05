@@ -95,6 +95,9 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 			}
 
 			_, minggu := harian.CreatedAt.ISOWeek()
+			if harian.CreatedAt.Month() != time.Month(minggu) {
+				minggu = 1
+			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
 			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
@@ -180,7 +183,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 
 	const (
 		tegangan     = 220.0
-		tarifListrik = 1500.0
+		tarifListrik = 1900.0
 	)
 
 	for _, data := range monitoringData {
@@ -266,6 +269,9 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 			}
 
 			_, minggu := harian.CreatedAt.ISOWeek()
+			if harian.CreatedAt.Month() != time.Month(minggu) {
+				minggu = 1
+			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
 			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
