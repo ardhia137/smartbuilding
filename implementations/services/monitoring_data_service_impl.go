@@ -58,6 +58,8 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 	dataPenggunaanHarian := make(map[string][]entities.PenggunaanAir)
 	dataPenggunaanMingguan := make(map[string]map[string]float64)
 	dataPenggunaanTahunan := make(map[string]map[string]float64)
+	latestWaterFlow := make(map[string]float64)
+	latestCreatedAt := make(map[string]time.Time)
 
 	for _, data := range monitoringData {
 		switch data.MonitoringName {
@@ -65,14 +67,30 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 			kapasitasToren = data.MonitoringValue
 		case "monitoring_air_total_water_flow_pipa_air_masuk":
 			airMasuk = data.MonitoringValue
-		case "monitoring_air_total_water_flow_pipa_1", "monitoring_air_total_water_flow_pipa_2", "monitoring_air_total_water_flow_pipa_3", "monitoring_air_total_water_flow_pipa_4", "monitoring_air_total_water_flow_pipa_5", "monitoring_air_total_water_flow_pipa_6", "monitoring_air_total_water_flow_pipa_7", "monitoring_air_total_water_flow_pipa_8", "monitoring_air_total_water_flow_kantin", "monitoring_air_total_water_flow_klinik":
-			volume, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
-			totalAirKeluar += volume
+		default:
+			if strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_") {
+				volume, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
+
+				// Ambil nama pipa dari monitoring name
+				pipa := strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_")
+
+				// Simpan nilai terbaru berdasarkan CreatedAt
+				if lastTime, exists := latestCreatedAt[pipa]; !exists || data.CreatedAt.After(lastTime) {
+					latestWaterFlow[pipa] = volume
+					latestCreatedAt[pipa] = data.CreatedAt
+				}
+			}
 		}
+
 		createdAt = data.CreatedAt
 		updatedAt = data.UpdatedAt
 	}
 
+	// Hitung total air keluar hanya dari data terbaru tiap pipa
+	totalAirKeluar = 0
+	for _, volume := range latestWaterFlow {
+		totalAirKeluar += volume
+	}
 	indikatorLevel, _ := strconv.ParseFloat(strings.TrimSuffix(kapasitasToren, " %"), 64)
 	volumeSensor := 5100 * (indikatorLevel / 100)
 
