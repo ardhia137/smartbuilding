@@ -169,7 +169,6 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 
 	return []entities.GetAirDataResponse{response}, nil
 }
-
 func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetListrikDataResponse, error) {
 	monitoringData, err := s.monitoringDataRepository.GetListrikMonitoringData()
 	if err != nil {
@@ -206,7 +205,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 
 	for _, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
-		daya := tegangan * arus
+		daya := (tegangan * arus) / 1000 // Konversi ke kW
 
 		switch {
 		case strings.Contains(data.MonitoringName, "l1"):
@@ -224,10 +223,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 		updatedAt = data.UpdatedAt
 	}
 
-	biayaLT1 := fmt.Sprintf("Rp. %.0f", (totalDaya["LT1"]/1000)*tarifListrik)
-	biayaLT2 := fmt.Sprintf("Rp. %.0f", (totalDaya["LT2"]/1000)*tarifListrik)
-	biayaLT3 := fmt.Sprintf("Rp. %.0f", (totalDaya["LT3"]/1000)*tarifListrik)
-	biayaLT4 := fmt.Sprintf("Rp. %.0f", (totalDaya["LT4"]/1000)*tarifListrik)
+	biayaLT1 := fmt.Sprintf("Rp. %.0f", totalDaya["LT1"]*tarifListrik)
+	biayaLT2 := fmt.Sprintf("Rp. %.0f", totalDaya["LT2"]*tarifListrik)
+	biayaLT3 := fmt.Sprintf("Rp. %.0f", totalDaya["LT3"]*tarifListrik)
+	biayaLT4 := fmt.Sprintf("Rp. %.0f", totalDaya["LT4"]*tarifListrik)
 
 	now := time.Now()
 	year, month, _ := now.Date()
@@ -237,7 +236,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 	for _, harian := range monitoringDataHarian {
 		if strings.Contains(harian.MonitoringName, "arus_listrik") {
 			arus, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " A"), 64)
-			daya := tegangan * arus
+			daya := (tegangan * arus) / 1000 // Konversi ke kW
 
 			var lantai int
 			switch {
@@ -262,26 +261,26 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 				}
 
 				if existing, ok := dataPenggunaanHarian[hari][lantai]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " W"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
 					existingValue += daya
-					existing.Value = fmt.Sprintf("%.0f W", existingValue)
+					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
 					dataPenggunaanHarian[hari][lantai] = existing
 				} else {
 					dataPenggunaanHarian[hari][lantai] = entities.PenggunaanListrik{
 						Lantai: lantai,
-						Value:  fmt.Sprintf("%.0f W", daya),
+						Value:  fmt.Sprintf("%.2f kW", daya),
 					}
 				}
 
 				if existing, ok := dataBiayaHarian[hari][lantai]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += (daya / 1000) * tarifListrik
+					existingBiaya += daya * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
 					dataBiayaHarian[hari][lantai] = existing
 				} else {
 					dataBiayaHarian[hari][lantai] = entities.BiayaListrik{
 						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", (daya/1000)*tarifListrik),
+						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
 					}
 				}
 			}
@@ -301,26 +300,26 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 				}
 
 				if existing, ok := dataPenggunaanMingguan[mingguanKey][lantai]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " W"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
 					existingValue += daya
-					existing.Value = fmt.Sprintf("%.0f W", existingValue)
+					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
 					dataPenggunaanMingguan[mingguanKey][lantai] = existing
 				} else {
 					dataPenggunaanMingguan[mingguanKey][lantai] = entities.PenggunaanListrik{
 						Lantai: lantai,
-						Value:  fmt.Sprintf("%.0f W", daya),
+						Value:  fmt.Sprintf("%.2f kW", daya),
 					}
 				}
 
 				if existing, ok := dataBiayaMingguan[mingguanKey][lantai]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += (daya / 1000) * tarifListrik
+					existingBiaya += daya * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
 					dataBiayaMingguan[mingguanKey][lantai] = existing
 				} else {
 					dataBiayaMingguan[mingguanKey][lantai] = entities.BiayaListrik{
 						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", (daya/1000)*tarifListrik),
+						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
 					}
 				}
 			}
@@ -336,26 +335,26 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 				}
 
 				if existing, ok := dataPenggunaanTahunan[bulanHarian][lantai]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " W"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
 					existingValue += daya
-					existing.Value = fmt.Sprintf("%.0f W", existingValue)
+					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
 					dataPenggunaanTahunan[bulanHarian][lantai] = existing
 				} else {
 					dataPenggunaanTahunan[bulanHarian][lantai] = entities.PenggunaanListrik{
 						Lantai: lantai,
-						Value:  fmt.Sprintf("%.0f W", daya),
+						Value:  fmt.Sprintf("%.2f kW", daya),
 					}
 				}
 
 				if existing, ok := dataBiayaTahunan[bulanHarian][lantai]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += (daya / 1000) * tarifListrik
+					existingBiaya += daya * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
 					dataBiayaTahunan[bulanHarian][lantai] = existing
 				} else {
 					dataBiayaTahunan[bulanHarian][lantai] = entities.BiayaListrik{
 						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", (daya/1000)*tarifListrik),
+						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
 					}
 				}
 			}
@@ -379,11 +378,11 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 	}
 
 	response := entities.GetListrikDataResponse{
-		TotalWatt:                     fmt.Sprintf("%.0f W", totalWatt),
-		TotalDayaListrikLT1:           fmt.Sprintf("%.0f W", totalDaya["LT1"]),
-		TotalDayaListrikLT2:           fmt.Sprintf("%.0f W", totalDaya["LT2"]),
-		TotalDayaListrikLT3:           fmt.Sprintf("%.0f W", totalDaya["LT3"]),
-		TotalDayaListrikLT4:           fmt.Sprintf("%.0f W", totalDaya["LT4"]),
+		TotalWatt:                     fmt.Sprintf("%.2f kW", totalWatt),
+		TotalDayaListrikLT1:           fmt.Sprintf("%.2f kW", totalDaya["LT1"]),
+		TotalDayaListrikLT2:           fmt.Sprintf("%.2f kW", totalDaya["LT2"]),
+		TotalDayaListrikLT3:           fmt.Sprintf("%.2f kW", totalDaya["LT3"]),
+		TotalDayaListrikLT4:           fmt.Sprintf("%.2f kW", totalDaya["LT4"]),
 		BiayaPemakaianLT1:             biayaLT1,
 		BiayaPemakaianLT2:             biayaLT2,
 		BiayaPemakaianLT3:             biayaLT3,
