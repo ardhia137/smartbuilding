@@ -10,6 +10,10 @@ type SettingRepositoryImpl struct {
 	db *gorm.DB
 }
 
+func (r *SettingRepositoryImpl) WithTransaction() *gorm.DB {
+	return r.db
+}
+
 func NewSettingRepository(db *gorm.DB) repositories.SettingRepository {
 	return &SettingRepositoryImpl{db: db}
 }

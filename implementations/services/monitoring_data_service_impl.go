@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"regexp"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
@@ -12,16 +13,24 @@ import (
 
 type monitoringDataServiceImpl struct {
 	monitoringDataRepository repositories.MonitoringDataRepository
+	dataTorenRepository      repositories.DataTorenRepository
+	settingRepository        repositories.SettingRepository
 }
 
-func NewMonitoringDataService(monitorRepo repositories.MonitoringDataRepository) services.MonitoringDataService {
-	return &monitoringDataServiceImpl{monitorRepo}
+func NewMonitoringDataService(monitorRepo repositories.MonitoringDataRepository,
+
+	dataToren repositories.DataTorenRepository,
+	settingRepo repositories.SettingRepository,
+) services.MonitoringDataService {
+	return &monitoringDataServiceImpl{monitorRepo, dataToren, settingRepo}
+
 }
 
 func (s *monitoringDataServiceImpl) SaveMonitoringData(request entities.CreateMonitoringDataRequest) (entities.MonitoringDataResponse, error) {
 	monitoringData := entities.MonitoringData{
 		MonitoringName:  request.MonitoringName,
 		MonitoringValue: request.MonitoringValue,
+		IDSetting:       request.IDSetting,
 	}
 
 	createdData, err := s.monitoringDataRepository.SaveMonitoringData(monitoringData)
@@ -40,44 +49,90 @@ func (s *monitoringDataServiceImpl) SaveMonitoringData(request entities.CreateMo
 	return response, nil
 }
 
-func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDataResponse, error) {
-	monitoringData, err := s.monitoringDataRepository.GetAirMonitoringData()
+func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.GetAirDataResponse, error) {
+	monitoringData, err := s.monitoringDataRepository.GetAirMonitoringData(id)
+	if err != nil {
+		return nil, err
+	}
+	torenData, err := s.dataTorenRepository.FindBySettingID(id)
+	if err != nil {
+		return nil, err
+	}
+	monitoringDataHarian, err := s.monitoringDataRepository.GetAirMonitoringDataHarian(id)
 	if err != nil {
 		return nil, err
 	}
 
-	monitoringDataHarian, err := s.monitoringDataRepository.GetAirMonitoringDataHarian()
+	settingRepo, err := s.settingRepository.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	var kapasitasToren, airMasuk string
-	var totalAirKeluar float64
+	namaGedung := settingRepo.NamaGedung
+
+	var totalAirKeluar, totalAirMasuk float64
 	var createdAt, updatedAt time.Time
 
 	dataPenggunaanHarian := make(map[string][]entities.PenggunaanAir)
 	dataPenggunaanMingguan := make(map[string]map[string]float64)
 	dataPenggunaanTahunan := make(map[string]map[string]float64)
-	latestWaterFlow := make(map[string]float64)
-	latestCreatedAt := make(map[string]time.Time)
+	latestWaterFlowMasuk := make(map[string]float64)
+	latestCreatedAtMasuk := make(map[string]time.Time)
+	latestWaterFlowKeluar := make(map[string]float64)
+	latestCreatedAtKeluar := make(map[string]time.Time)
+
+	kapasitasTorenMap := make(map[string]entities.KapasitasTorenData)
+	// Simpan data toren berdasarkan nama
+	torenDataMap := make(map[string]entities.DataToren)
+	for _, toren := range torenData {
+		torenDataMap[toren.MonitoringName] = toren
+	}
 
 	for _, data := range monitoringData {
-		switch data.MonitoringName {
-		case "monitoring_air_kapasitas_toren":
-			kapasitasToren = data.MonitoringValue
-		case "monitoring_air_total_water_flow_pipa_air_masuk":
-			airMasuk = data.MonitoringValue
+		switch {
+		case strings.HasPrefix(data.MonitoringName, "monitoring_air_kapasitas_toren"):
+			namaToren := data.MonitoringName
+			kapasitas := data.MonitoringValue
+
+			// Ambil kapasitas toren terbaru berdasarkan CreatedAt
+			if lastData, exists := kapasitasTorenMap[namaToren]; !exists || data.CreatedAt.After(lastData.CreatedAt) {
+				// Hitung volume sensor berdasarkan kapasitas toren dari monitoring
+				kapasitasFloat, _ := strconv.ParseFloat(strings.TrimSuffix(kapasitas, " %"), 64)
+
+				// Cek apakah ada data toren yang cocok
+				kapasitasTorenFinal := kapasitas
+				if toren, found := torenDataMap[namaToren]; found {
+					kapasitasTorenFinal = strconv.Itoa(toren.KapasitasToren) // Gunakan kapasitas dari torenData
+				}
+				kapasitasTorenFloat, _ := strconv.ParseFloat(kapasitasTorenFinal, 64)
+				volumeSensor := kapasitasTorenFloat * (kapasitasFloat / 100)
+				namaTorenFormatted := strings.TrimPrefix(namaToren, "monitoring_air_")
+				namaTorenFormatted = strings.ReplaceAll(namaTorenFormatted, "_", " ")
+				kapasitasTorenMap[namaToren] = entities.KapasitasTorenData{
+					Nama:           namaTorenFormatted,
+					Kapasitas:      kapasitas,
+					KapasitasToren: kapasitasTorenFinal, // Gunakan nilai yang telah diperbarui jika cocok
+					VolumeSensor:   fmt.Sprintf("%.0f L", volumeSensor),
+					CreatedAt:      data.CreatedAt,
+				}
+			}
+		case strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_air_masuk"):
+			volumeMasuk, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
+			pipa := strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_air_masuk")
+			if lastTime, exists := latestCreatedAtMasuk[pipa]; !exists || data.CreatedAt.After(lastTime) {
+				latestWaterFlowMasuk[pipa] = volumeMasuk
+				latestCreatedAtMasuk[pipa] = data.CreatedAt
+			}
 		default:
-			if strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_") {
+			if strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_air_keluar_") {
 				volume, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
 
 				// Ambil nama pipa dari monitoring name
-				pipa := strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_")
-
+				pipa := strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_air_keluar_")
 				// Simpan nilai terbaru berdasarkan CreatedAt
-				if lastTime, exists := latestCreatedAt[pipa]; !exists || data.CreatedAt.After(lastTime) {
-					latestWaterFlow[pipa] = volume
-					latestCreatedAt[pipa] = data.CreatedAt
+				if lastTime, exists := latestCreatedAtKeluar[pipa]; !exists || data.CreatedAt.After(lastTime) {
+					latestWaterFlowKeluar[pipa] = volume
+					latestCreatedAtKeluar[pipa] = data.CreatedAt
 				}
 			}
 		}
@@ -85,15 +140,19 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 		createdAt = data.CreatedAt
 		updatedAt = data.UpdatedAt
 	}
-
 	// Hitung total air keluar hanya dari data terbaru tiap pipa
 	totalAirKeluar = 0
-	for _, volume := range latestWaterFlow {
+	for _, volume := range latestWaterFlowKeluar {
 		totalAirKeluar += volume
 	}
-	indikatorLevel, _ := strconv.ParseFloat(strings.TrimSuffix(kapasitasToren, " %"), 64)
-	volumeSensor := 5100 * (indikatorLevel / 100)
-
+	totalAirMasuk = 0
+	for _, volume := range latestWaterFlowMasuk {
+		totalAirMasuk += volume
+	}
+	var kapasitasToren []entities.KapasitasTorenData
+	for _, toren := range kapasitasTorenMap {
+		kapasitasToren = append(kapasitasToren, toren)
+	}
 	now := time.Now()
 	year, month, _ := now.Date()
 	startOfWeek := now.AddDate(0, 0, -int(now.Weekday())+1)
@@ -148,10 +207,10 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 	}
 
 	response := entities.GetAirDataResponse{
+		NamaGedung:             namaGedung,
 		KapasitasToren:         kapasitasToren,
-		AirMasuk:               airMasuk,
+		AirMasuk:               fmt.Sprintf("%.0f L", totalAirMasuk),
 		AirKeluar:              fmt.Sprintf("%.0f L", totalAirKeluar),
-		VolumeSensor:           fmt.Sprintf("%.0f L", volumeSensor),
 		DataPenggunaanHarian:   dataPenggunaanHarian,
 		DataPenggunaanMingguan: make(map[string][]entities.PenggunaanAir),
 		DataPenggunaanTahunan:  make(map[string][]entities.PenggunaanAir),
@@ -169,64 +228,82 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData() ([]entities.GetAirDat
 
 	return []entities.GetAirDataResponse{response}, nil
 }
-func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetListrikDataResponse, error) {
-	monitoringData, err := s.monitoringDataRepository.GetListrikMonitoringData()
+
+func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.GetListrikDataResponse, error) {
+	monitoringData, err := s.monitoringDataRepository.GetListrikMonitoringData(id)
 	if err != nil {
 		return entities.GetListrikDataResponse{}, err
 	}
 
-	monitoringDataHarian, err := s.monitoringDataRepository.GetListrikMonitoringDataHarian()
+	monitoringDataHarian, err := s.monitoringDataRepository.GetListrikMonitoringDataHarian(id)
 	if err != nil {
 		return entities.GetListrikDataResponse{}, err
 	}
 
+	setting, err := s.settingRepository.FindByID(id)
+	if err != nil {
+		return entities.GetListrikDataResponse{}, err
+	}
+	namaGedung := setting.NamaGedung
+	jenisListrik := setting.JenisListrik
+	var schadule = float64(setting.Scheduler)
+	var tarifListrik = float64(setting.HargaListrik)
 	var createdAt, updatedAt time.Time
 	var totalWatt float64
-	totalDaya := map[string]float64{
-		"LT1": 0,
-		"LT2": 0,
-		"LT3": 0,
-		"LT4": 0,
-	}
 
-	dataPenggunaanHarian := make(map[string]map[int]entities.PenggunaanListrik)
-	dataBiayaHarian := make(map[string]map[int]entities.BiayaListrik)
+	dataPenggunaanHarian := make(map[string]map[string]entities.PenggunaanListrik)
+	dataBiayaHarian := make(map[string]map[string]entities.BiayaListrik)
 
-	dataPenggunaanMingguan := make(map[string]map[int]entities.PenggunaanListrik)
-	dataBiayaMingguan := make(map[string]map[int]entities.BiayaListrik)
+	dataPenggunaanMingguan := make(map[string]map[string]entities.PenggunaanListrik)
+	dataBiayaMingguan := make(map[string]map[string]entities.BiayaListrik)
 
-	dataPenggunaanTahunan := make(map[string]map[int]entities.PenggunaanListrik)
-	dataBiayaTahunan := make(map[string]map[int]entities.BiayaListrik)
+	dataPenggunaanTahunan := make(map[string]map[string]entities.PenggunaanListrik)
+	dataBiayaTahunan := make(map[string]map[string]entities.BiayaListrik)
 
-	const (
-		tegangan     = 220.0
-		tarifListrik = 1900.0
-	)
+	var totalDaya []entities.TotalDayaListrik
+	totalBiaya := []entities.BiayaListrik{} // Map untuk menyimpan total biaya
+
+	totalDayaMap := make(map[string]float64)  // Untuk menyimpan sementara sebelum konversi ke slice
+	totalBiayaMap := make(map[string]float64) // Untuk menyimpan sementara sebelum konversi ke slice
 
 	for _, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
-		daya := (tegangan * arus) / 1000 // Konversi ke kW
+		var kw, kwh float64
 
-		switch {
-		case strings.Contains(data.MonitoringName, "l1"):
-			totalDaya["LT1"] += daya
-		case strings.Contains(data.MonitoringName, "l2"):
-			totalDaya["LT2"] += daya
-		case strings.Contains(data.MonitoringName, "l3"):
-			totalDaya["LT3"] += daya
-		case strings.Contains(data.MonitoringName, "lt4"):
-			totalDaya["LT4"] += daya
+		if jenisListrik == "1_phase" {
+			kw = 220 * arus * 0.8 / 1000
+			kwh = kw * (schadule / 3600.0)
+		} else if jenisListrik == "3_phase" {
+			kw = 1.732 * 380 * arus * 0.8 / 1000
+			kwh = kw * (schadule / 3600.0)
+		}
+		re := regexp.MustCompile(`arus_listrik_l\d+`)
+		match := re.FindString(data.MonitoringName)
+		fmt.Println(match, arus, kwh)
+
+		if match != "" {
+			totalDayaMap[match] += kw
+			totalBiayaMap[match] += kwh * float64(tarifListrik)
 		}
 
-		totalWatt += daya
+		totalWatt += kw
 		createdAt = data.CreatedAt
 		updatedAt = data.UpdatedAt
 	}
-
-	biayaLT1 := fmt.Sprintf("Rp. %.0f", totalDaya["LT1"]*tarifListrik)
-	biayaLT2 := fmt.Sprintf("Rp. %.0f", totalDaya["LT2"]*tarifListrik)
-	biayaLT3 := fmt.Sprintf("Rp. %.0f", totalDaya["LT3"]*tarifListrik)
-	biayaLT4 := fmt.Sprintf("Rp. %.0f", totalDaya["LT4"]*tarifListrik)
+	fmt.Println(totalDayaMap)
+	// Konversi map ke slice
+	for key, value := range totalDayaMap {
+		totalDaya = append(totalDaya, entities.TotalDayaListrik{
+			Nama:  strings.ReplaceAll(key, "_", " "),
+			Value: fmt.Sprintf("%.2f kW", value),
+		})
+	}
+	for key, value := range totalBiayaMap {
+		totalBiaya = append(totalBiaya, entities.BiayaListrik{
+			Nama:  strings.ReplaceAll(key, "_", " "),
+			Biaya: fmt.Sprintf("Rp.%.2f", value),
+		})
+	}
 
 	now := time.Now()
 	year, month, _ := now.Date()
@@ -236,51 +313,48 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 	for _, harian := range monitoringDataHarian {
 		if strings.Contains(harian.MonitoringName, "arus_listrik") {
 			arus, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " A"), 64)
-			daya := (tegangan * arus) / 1000 // Konversi ke kW
-
-			var lantai int
-			switch {
-			case strings.Contains(harian.MonitoringName, "l1"):
-				lantai = 1
-			case strings.Contains(harian.MonitoringName, "l2"):
-				lantai = 2
-			case strings.Contains(harian.MonitoringName, "l3"):
-				lantai = 3
-			case strings.Contains(harian.MonitoringName, "lt4"):
-				lantai = 4
+			var kw, kwh float64
+			if jenisListrik == "1_phase" {
+				kw = 220 * arus * 0.8 / 1000
+				kwh = kw / 24
+			} else if jenisListrik == "3_phase" {
+				kw = 1.732 * 380 * arus * 0.8 / 1000
+				kwh = kw / 24
 			}
+			re := regexp.MustCompile(`arus_listrik_l\d+`)
+			match := re.FindString(harian.MonitoringName)
 
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
 
 			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
 				if dataPenggunaanHarian[hari] == nil {
-					dataPenggunaanHarian[hari] = make(map[int]entities.PenggunaanListrik)
+					dataPenggunaanHarian[hari] = make(map[string]entities.PenggunaanListrik)
 				}
 				if dataBiayaHarian[hari] == nil {
-					dataBiayaHarian[hari] = make(map[int]entities.BiayaListrik)
+					dataBiayaHarian[hari] = make(map[string]entities.BiayaListrik)
 				}
 
-				if existing, ok := dataPenggunaanHarian[hari][lantai]; ok {
+				if existing, ok := dataPenggunaanHarian[hari][match]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
-					existingValue += daya
+					existingValue += kw
 					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
-					dataPenggunaanHarian[hari][lantai] = existing
+					dataPenggunaanHarian[hari][match] = existing
 				} else {
-					dataPenggunaanHarian[hari][lantai] = entities.PenggunaanListrik{
-						Lantai: lantai,
-						Value:  fmt.Sprintf("%.2f kW", daya),
+					dataPenggunaanHarian[hari][match] = entities.PenggunaanListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Value: fmt.Sprintf("%.2f kW", kw),
 					}
 				}
 
-				if existing, ok := dataBiayaHarian[hari][lantai]; ok {
+				if existing, ok := dataBiayaHarian[hari][match]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += daya * tarifListrik
+					existingBiaya += kwh * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
-					dataBiayaHarian[hari][lantai] = existing
+					dataBiayaHarian[hari][match] = existing
 				} else {
-					dataBiayaHarian[hari][lantai] = entities.BiayaListrik{
-						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
+					dataBiayaHarian[hari][match] = entities.BiayaListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Biaya: fmt.Sprintf("Rp. %.0f", kwh*tarifListrik),
 					}
 				}
 			}
@@ -293,33 +367,33 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 
 			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
 				if dataPenggunaanMingguan[mingguanKey] == nil {
-					dataPenggunaanMingguan[mingguanKey] = make(map[int]entities.PenggunaanListrik)
+					dataPenggunaanMingguan[mingguanKey] = make(map[string]entities.PenggunaanListrik)
 				}
 				if dataBiayaMingguan[mingguanKey] == nil {
-					dataBiayaMingguan[mingguanKey] = make(map[int]entities.BiayaListrik)
+					dataBiayaMingguan[mingguanKey] = make(map[string]entities.BiayaListrik)
 				}
 
-				if existing, ok := dataPenggunaanMingguan[mingguanKey][lantai]; ok {
+				if existing, ok := dataPenggunaanMingguan[mingguanKey][match]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
-					existingValue += daya
+					existingValue += kw
 					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
-					dataPenggunaanMingguan[mingguanKey][lantai] = existing
+					dataPenggunaanMingguan[mingguanKey][match] = existing
 				} else {
-					dataPenggunaanMingguan[mingguanKey][lantai] = entities.PenggunaanListrik{
-						Lantai: lantai,
-						Value:  fmt.Sprintf("%.2f kW", daya),
+					dataPenggunaanMingguan[mingguanKey][match] = entities.PenggunaanListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Value: fmt.Sprintf("%.2f kW", kw),
 					}
 				}
 
-				if existing, ok := dataBiayaMingguan[mingguanKey][lantai]; ok {
+				if existing, ok := dataBiayaMingguan[mingguanKey][match]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += daya * tarifListrik
+					existingBiaya += kwh * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
-					dataBiayaMingguan[mingguanKey][lantai] = existing
+					dataBiayaMingguan[mingguanKey][match] = existing
 				} else {
-					dataBiayaMingguan[mingguanKey][lantai] = entities.BiayaListrik{
-						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
+					dataBiayaMingguan[mingguanKey][match] = entities.BiayaListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Biaya: fmt.Sprintf("Rp. %.0f", kwh*tarifListrik),
 					}
 				}
 			}
@@ -328,40 +402,40 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 
 			if harian.CreatedAt.Year() == year {
 				if dataPenggunaanTahunan[bulanHarian] == nil {
-					dataPenggunaanTahunan[bulanHarian] = make(map[int]entities.PenggunaanListrik)
+					dataPenggunaanTahunan[bulanHarian] = make(map[string]entities.PenggunaanListrik)
 				}
 				if dataBiayaTahunan[bulanHarian] == nil {
-					dataBiayaTahunan[bulanHarian] = make(map[int]entities.BiayaListrik)
+					dataBiayaTahunan[bulanHarian] = make(map[string]entities.BiayaListrik)
 				}
 
-				if existing, ok := dataPenggunaanTahunan[bulanHarian][lantai]; ok {
+				if existing, ok := dataPenggunaanTahunan[bulanHarian][match]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
-					existingValue += daya
+					existingValue += kw
 					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
-					dataPenggunaanTahunan[bulanHarian][lantai] = existing
+					dataPenggunaanTahunan[bulanHarian][match] = existing
 				} else {
-					dataPenggunaanTahunan[bulanHarian][lantai] = entities.PenggunaanListrik{
-						Lantai: lantai,
-						Value:  fmt.Sprintf("%.2f kW", daya),
+					dataPenggunaanTahunan[bulanHarian][match] = entities.PenggunaanListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Value: fmt.Sprintf("%.2f kW", kw),
 					}
 				}
 
-				if existing, ok := dataBiayaTahunan[bulanHarian][lantai]; ok {
+				if existing, ok := dataBiayaTahunan[bulanHarian][match]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
-					existingBiaya += daya * tarifListrik
+					existingBiaya += kwh * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
-					dataBiayaTahunan[bulanHarian][lantai] = existing
+					dataBiayaTahunan[bulanHarian][match] = existing
 				} else {
-					dataBiayaTahunan[bulanHarian][lantai] = entities.BiayaListrik{
-						Lantai: lantai,
-						Biaya:  fmt.Sprintf("Rp. %.0f", daya*tarifListrik),
+					dataBiayaTahunan[bulanHarian][match] = entities.BiayaListrik{
+						Nama:  strings.ReplaceAll(match, "_", " "),
+						Biaya: fmt.Sprintf("Rp. %.0f", kwh*tarifListrik),
 					}
 				}
 			}
 		}
 	}
 
-	convertToSlice := func(data map[int]entities.PenggunaanListrik) []entities.PenggunaanListrik {
+	convertToSlice := func(data map[string]entities.PenggunaanListrik) []entities.PenggunaanListrik {
 		result := make([]entities.PenggunaanListrik, 0, len(data))
 		for _, v := range data {
 			result = append(result, v)
@@ -369,7 +443,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 		return result
 	}
 
-	convertBiayaToSlice := func(data map[int]entities.BiayaListrik) []entities.BiayaListrik {
+	convertBiayaToSlice := func(data map[string]entities.BiayaListrik) []entities.BiayaListrik {
 		result := make([]entities.BiayaListrik, 0, len(data))
 		for _, v := range data {
 			result = append(result, v)
@@ -378,15 +452,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData() (entities.GetList
 	}
 
 	response := entities.GetListrikDataResponse{
+		NamaGedung:                    namaGedung,
 		TotalWatt:                     fmt.Sprintf("%.2f kW", totalWatt),
-		TotalDayaListrikLT1:           fmt.Sprintf("%.2f kW", totalDaya["LT1"]),
-		TotalDayaListrikLT2:           fmt.Sprintf("%.2f kW", totalDaya["LT2"]),
-		TotalDayaListrikLT3:           fmt.Sprintf("%.2f kW", totalDaya["LT3"]),
-		TotalDayaListrikLT4:           fmt.Sprintf("%.2f kW", totalDaya["LT4"]),
-		BiayaPemakaianLT1:             biayaLT1,
-		BiayaPemakaianLT2:             biayaLT2,
-		BiayaPemakaianLT3:             biayaLT3,
-		BiayaPemakaianLT4:             biayaLT4,
+		TotalDayaListrik:              totalDaya,
+		BiayaPemakaian:                totalBiaya,
 		DataPenggunaanListrikHarian:   make(map[string][]entities.PenggunaanListrik),
 		DataBiayaListrikHarian:        make(map[string][]entities.BiayaListrik),
 		DataPenggunaanListrikMingguan: make(map[string][]entities.PenggunaanListrik),

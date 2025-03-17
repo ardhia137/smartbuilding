@@ -3,7 +3,7 @@ package usecases
 import "smartbuilding/entities"
 
 type SettingUseCase interface {
-	CreateSetting(request entities.CreateSettingRequest) (*entities.SettingResponse, error)
+	CreateSetting(request entities.CreateSettingRequest) (*entities.SettingResponseCreate, error)
 	GetAllSetting() ([]entities.SettingResponse, error)
 	GetSettingByID(id int) (*entities.SettingResponse, error)
 	UpdateSetting(id int, request entities.CreateSettingRequest) (*entities.SettingResponse, error)

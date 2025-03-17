@@ -143,6 +143,7 @@ type LoginResponse struct {
 type CreateMonitoringDataRequest struct {
 	MonitoringName  string `json:"monitoring_name" validate:"required"`
 	MonitoringValue string `json:"monitoring_value" validate:"required"`
+	IDSetting       uint   `json:"id_setting" validate:"required"`
 }
 
 type MonitoringDataResponse struct {
@@ -153,11 +154,19 @@ type MonitoringDataResponse struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+type KapasitasTorenData struct {
+	Nama           string    `json:"nama"`
+	Kapasitas      string    `json:"kapasitas"`
+	KapasitasToren string    `json:"kapasitas_toren"`
+	VolumeSensor   string    `json:"volume_sensor"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type GetAirDataResponse struct {
-	KapasitasToren         string                     `json:"KapasitasToren"`
+	NamaGedung             string                     `json:"nama_gedung"`
+	KapasitasToren         []KapasitasTorenData       `json:"kapasitasToren"`
 	AirKeluar              string                     `json:"AirKeluar"`
 	AirMasuk               string                     `json:"AirMasuk"`
-	VolumeSensor           string                     `json:"VolumeSensor"`
 	DataPenggunaanHarian   map[string][]PenggunaanAir `json:"DataPenggunaanHarian"`
 	DataPenggunaanMingguan map[string][]PenggunaanAir `json:"DataPenggunaanMingguan"`
 	DataPenggunaanTahunan  map[string][]PenggunaanAir `json:"DataPenggunaanTahunan"`
@@ -171,15 +180,10 @@ type PenggunaanAir struct {
 }
 
 type GetListrikDataResponse struct {
+	NamaGedung                    string                         `json:"nama_gedung"`
 	TotalWatt                     string                         `json:"TotalWatt"`
-	TotalDayaListrikLT1           string                         `json:"TotalDayaListrikLT1"`
-	TotalDayaListrikLT2           string                         `json:"TotalDayaListrikLT2"`
-	TotalDayaListrikLT3           string                         `json:"TotalDayaListrikLT3"`
-	TotalDayaListrikLT4           string                         `json:"TotalDayaListrikLT4"`
-	BiayaPemakaianLT1             string                         `json:"BiayaPemakaianLT1"`
-	BiayaPemakaianLT2             string                         `json:"BiayaPemakaianLT2"`
-	BiayaPemakaianLT3             string                         `json:"BiayaPemakaianLT3"`
-	BiayaPemakaianLT4             string                         `json:"BiayaPemakaianLT4"`
+	TotalDayaListrik              []TotalDayaListrik             `json:"TotalDayaListrik"`
+	BiayaPemakaian                []BiayaListrik                 `json:"BiayaPemakaian"`
 	DataPenggunaanListrikHarian   map[string][]PenggunaanListrik `json:"DataPenggunaanListrikHarian"`
 	DataBiayaListrikHarian        map[string][]BiayaListrik      `json:"DataBiayaListrikHarian"`
 	DataPenggunaanListrikMingguan map[string][]PenggunaanListrik `json:"DataPenggunaanListrikMingguan"`
@@ -191,24 +195,68 @@ type GetListrikDataResponse struct {
 }
 
 type PenggunaanListrik struct {
-	Lantai int    `json:"Lantai"`
-	Value  string `json:"Value"`
+	Nama  string `json:"nama"`
+	Value string `json:"Value"`
+}
+type TotalDayaListrik struct {
+	Nama  string `json:"nama"`
+	Value string `json:"Value"`
 }
 
 type BiayaListrik struct {
-	Lantai int    `json:"Lantai"`
-	Biaya  string `json:"Biaya"`
+	Nama  string `json:"Nama"`
+	Biaya string `json:"Biaya"`
 }
 
 type CreateSettingRequest struct {
-	HaosURL   string `json:"haos_url" binding:"required"`
-	HaosToken string `json:"haos_token" binding:"required"`
-	Scheduler int    `json:"scheduler" binding:"required"`
+	NamaGedung   string                   `json:"nama_gedung" binding:"required"`
+	HaosURL      string                   `json:"haos_url"       binding:"required"`
+	HaosToken    string                   `json:"haos_token"     binding:"required"`
+	Scheduler    int                      `json:"scheduler"      binding:"required"`
+	HargaListrik int                      `json:"harga_listrik"  binding:"required"`
+	DataToren    []CreateDataTorenRequest `json:"data_toren"`
+	JenisListrik string                   `json:"jenis_listrik" binding:"required,oneof='1_phase' '3_phase'"`
+}
+
+type UpdateSettingRequest struct {
+	NamaGedung   string `json:"nama_gedung" binding:"required"`
+	HaosURL      string `json:"haos_url"       binding:"required"`
+	HaosToken    string `json:"haos_token"     binding:"required"`
+	Scheduler    int    `json:"scheduler"      binding:"required"`
+	HargaListrik int    `json:"harga_listrik"  binding:"required"`
+	JenisListrik string `json:"jenis_listrik" binding:"required,oneof='1_phase' '3_phase'"`
 }
 
 type SettingResponse struct {
-	ID        int    `json:"id"`
-	HaosURL   string `json:"haos_url"`
-	HaosToken string `json:"haos_token"`
-	Scheduler int    `json:"scheduler"`
+	ID           int    `json:"id"`
+	NamaGedung   string `json:"nama_gedung"`
+	HaosURL      string `json:"haos_url"`
+	HaosToken    string `json:"haos_token"`
+	Scheduler    int    `json:"scheduler"`
+	HargaListrik int    `json:"harga_listrik"`
+	JenisListrik string `json:"jenis_listrik" binding:"required"`
+}
+
+type SettingResponseCreate struct {
+	ID           int         `json:"id"`
+	NamaGedung   string      `json:"nama_gedung"`
+	HaosURL      string      `json:"haos_url"`
+	HaosToken    string      `json:"haos_token"`
+	Scheduler    int         `json:"scheduler"`
+	HargaListrik int         `json:"harga_listrik"`
+	JenisListrik string      `json:"jenis_listrik" binding:"required"`
+	DataToren    []DataToren `json:"data_toren"`
+}
+
+type CreateDataTorenRequest struct {
+	MonitoringName string `json:"monitoring_name" binding:"required"`
+	KapasitasToren int    `json:"kapasitas_toren" binding:"required"`
+	IDSetting      int    `json:"id_setting" binding:"required"`
+}
+
+type DataTorenResponse struct {
+	ID             uint   `json:"id"`
+	MonitoringName string `json:"monitoring_name"`
+	KapasitasToren int    `json:"kapasitas_toren"`
+	IDSetting      int    `json:"id_setting"`
 }

@@ -83,8 +83,8 @@ func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *
 	apiRoutes := router.Group("/api")
 	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
 	{
-		apiRoutes.GET("/monitoring_air", monitoringDataController.GetAirMonitoringData)
-		apiRoutes.GET("/monitoring_listrik", monitoringDataController.GetListrikMonitoringData)
+		apiRoutes.GET("/monitoring_air/:id", monitoringDataController.GetAirMonitoringData)
+		apiRoutes.GET("/monitoring_listrik/:id", monitoringDataController.GetListrikMonitoringData)
 
 	}
 }
@@ -99,6 +99,21 @@ func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.Se
 		settingRoutes.GET("/:id", settingController.GetSettingByID)
 		settingRoutes.PUT("/:id", settingController.UpdateSetting)
 		settingRoutes.DELETE("/:id", settingController.DeleteSetting)
+
+	}
+}
+
+func RegisterDataTorenRoutes(router *gin.Engine, dataTorenController *controllers.DataTorenController) {
+	apiGroup := router.Group("/api")
+	dataTorenRoutes := apiGroup.Group("/dataToren")
+	dataTorenRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
+	{
+		dataTorenRoutes.GET("", dataTorenController.GetAllDataToren)
+		dataTorenRoutes.POST("", dataTorenController.CreateDataToren)
+		dataTorenRoutes.GET("/:id", dataTorenController.GetDataTorenByID)
+		dataTorenRoutes.GET("/setting/:id", dataTorenController.GetDataTorenBySettingID)
+		dataTorenRoutes.PUT("/:id", dataTorenController.UpdateDataToren)
+		dataTorenRoutes.DELETE("/:id", dataTorenController.DeleteDataToren)
 
 	}
 }

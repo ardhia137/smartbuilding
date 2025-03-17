@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"smartbuilding/entities"
 	"smartbuilding/usecases"
+	"strconv"
 )
 
 type MonitoringDataController struct {
@@ -32,19 +33,29 @@ func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
 }
 
 func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
-
-	response, err := c.useCase.GetAirMonitoringData()
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid ID"})
+		return
+	}
+	response, err := c.useCase.GetAirMonitoringData(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response[0])
+	ctx.JSON(http.StatusOK, response)
 }
 
 func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
-
-	response, err := c.useCase.GetListrikMonitoringData()
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid ID"})
+		return
+	}
+	response, err := c.useCase.GetListrikMonitoringData(id)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
