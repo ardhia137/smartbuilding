@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -34,8 +35,23 @@ func (c *SettingController) CreateSetting(ctx *gin.Context) {
 }
 
 func (c *SettingController) GetAllSetting(ctx *gin.Context) {
-	response, err := c.haosUseCase.GetAllSetting()
+	// Ambil role dari context
+	roleInterface, _ := ctx.Get("role")
+	role, _ := roleInterface.(string)
+
+	// Ambil user_id dari context
+	userIDInterface, _ := ctx.Get("user_id")
+	userID, _ := userIDInterface.(uint)
+	fmt.Println(userID)
+	response, err := c.haosUseCase.GetAllSetting(role, userID)
+
 	if err != nil {
+		// Jika error "unauthorized", kirim status 401
+		if err.Error() == "no data" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "No Data Available"})
+			return
+		}
+		// Error lain -> status 500
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -37,6 +37,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 	}
 
 	ctx.Set("role", response.Role)
+	ctx.Set("user_id", response.UserId)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  "success",

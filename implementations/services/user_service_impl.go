@@ -1,8 +1,10 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
@@ -43,26 +45,65 @@ func (s *userServiceImpl) GetUserByID(id uint) (entities.UserResponse, error) {
 
 	return entities.UserResponse{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role}, nil
 }
-
-func (s *userServiceImpl) CreateUser(request entities.CreateUserRequest) (entities.UserResponse, error) {
+func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (entities.UserResponse, error) {
+	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return entities.UserResponse{}, utils.ErrInternal
 	}
 
-	user := entities.User{
-		Username: request.Username,
-		Email:    request.Email,
-		Password: string(hashedPassword),
-		Role:     request.Role,
-	}
-	createdUser, err := s.userRepository.Create(user)
-	fmt.Println("asd" + request.Username)
-	if err != nil {
-		return entities.UserResponse{}, utils.ErrInternal
+	// Validasi jika role bukan "admin" tapi PengelolaGedung kosong
+	if request.Role != "admin" && len(request.PengelolaGedung) == 0 {
+		return entities.UserResponse{}, errors.New("pengelola gedung tidak boleh kosong untuk role ini")
 	}
 
-	return entities.UserResponse{ID: createdUser.ID, Username: createdUser.Username, Email: createdUser.Email, Role: user.Role}, nil
+	db := s.userRepository.WithTransaction()
+	var createdUser entities.User // Deklarasi di luar transaksi
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		user := entities.User{
+			Username: request.Username,
+			Email:    request.Email,
+			Password: string(hashedPassword),
+			Role:     request.Role,
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+
+		createdUser = user // Simpan user yang dibuat
+		fmt.Println(request.PengelolaGedung)
+
+		// Jika role bukan admin, proses PengelolaGedung
+		if request.Role != "admin" {
+			var pengelolaGedungList []entities.PengelolaGedung
+			for _, pengelolaGedung := range request.PengelolaGedung {
+				pengelolaGedungList = append(pengelolaGedungList, entities.PengelolaGedung{
+					UserId:    int(user.ID), // Gunakan ID yang baru dibuat
+					SettingID: pengelolaGedung.SettingID,
+				})
+			}
+			fmt.Println(request.PengelolaGedung)
+			if len(pengelolaGedungList) > 0 {
+				if err := tx.Create(&pengelolaGedungList).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return entities.UserResponse{}, err
+	}
+
+	return entities.UserResponse{
+		ID:       createdUser.ID,
+		Username: createdUser.Username,
+		Email:    createdUser.Email,
+		Role:     createdUser.Role,
+	}, nil
 }
 
 func (s *userServiceImpl) UpdateUser(id uint, request entities.CreateUserRequest) (entities.UserResponse, error) {

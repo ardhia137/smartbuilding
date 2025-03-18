@@ -10,6 +10,10 @@ type userRepositoryImpl struct {
 	db *gorm.DB
 }
 
+func (r *userRepositoryImpl) WithTransaction() *gorm.DB {
+	return r.db
+}
+
 func NewUserRepository(db *gorm.DB) repositories.UserRepository {
 	return &userRepositoryImpl{db}
 }

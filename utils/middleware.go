@@ -86,3 +86,43 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 		ctx.Next()
 	}
 }
+
+func UserIDMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		authHeader := ctx.GetHeader("Authorization")
+		if authHeader == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Token is required",
+			})
+			ctx.Abort()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Invalid token format",
+			})
+			ctx.Abort()
+			return
+		}
+
+		claims, err := VerifyToken(tokenString)
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Invalid or expired token",
+				"error":   err.Error(),
+			})
+			ctx.Abort()
+			return
+		}
+
+		// Simpan user_id ke context
+		ctx.Set("user_id", claims.UserID)
+
+		ctx.Next()
+	}
+}

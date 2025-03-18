@@ -69,7 +69,7 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
-	user, err := c.userUseCase.CreateUser(request)
+	user, err := c.userUseCase.CreateFromAdmin(request)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",

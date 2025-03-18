@@ -46,6 +46,7 @@ func (c *DataTorenController) GetAllDataToren(ctx *gin.Context) {
 func (c *DataTorenController) GetDataTorenByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
+
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid ID"})
 		return

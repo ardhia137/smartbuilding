@@ -7,6 +7,7 @@ import (
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
 	"smartbuilding/utils"
+	"strconv"
 )
 
 type authServiceImpl struct {
@@ -33,7 +34,7 @@ func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse,
 		return entities.LoginResponse{}, errors.New("failed to generate token")
 	}
 
-	return entities.LoginResponse{Token: token, Role: user.Role}, nil
+	return entities.LoginResponse{Token: token, Role: user.Role, UserId: strconv.Itoa(int(user.ID))}, nil
 }
 
 func (s *authServiceImpl) ValidateToken(token string) (*entities.User, error) {

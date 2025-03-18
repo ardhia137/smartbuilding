@@ -30,7 +30,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	c = cron.New()
 
 	// Inisialisasi cron jobs untuk semua settings
-	settings, err := settingUseCase.GetAllSetting()
+	settings, err := settingUseCase.GetAllCornJobs()
 	if err != nil {
 		fmt.Println("Error fetching settings:", err)
 		return
@@ -51,8 +51,8 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	}
 
 	// Jadwalkan rekap harian
-	_, err = c.AddFunc("59 22 * * *", func() {
-		rekapHarian(monitoringDataRepo)
+	_, err = c.AddFunc("59 23 * * *", func() {
+		rekapHarian(monitoringDataRepo, settingRepo)
 	})
 	if err != nil {
 		fmt.Println("Error scheduling daily recap job:", err)
@@ -66,64 +66,62 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	select {}
 }
 
+//	func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
+//		fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
 //
-//func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
-//	fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
-//
-//	// Ambil semua settings untuk rekap harian
-//	settings, err := settingRepo.FindAll()
-//	if err != nil {
-//		fmt.Println("Error fetching settings:", err)
-//		return
-//	}
-//
-//	for _, setting := range settings {
-//		// Ambil data monitoring berdasarkan SettingID
-//		monitoringData, err := monitoringDataRepo.FindBySettingID(setting.ID)
+//		// Ambil semua settings untuk rekap harian
+//		settings, err := settingRepo.FindAll()
 //		if err != nil {
-//			fmt.Printf("Error fetching monitoring data for setting ID %d: %v\n", setting.ID, err)
-//			continue
+//			fmt.Println("Error fetching settings:", err)
+//			return
 //		}
 //
-//		totalMap := make(map[string]float64)
-//		countMap := make(map[string]int)
-//
-//		for _, data := range monitoringData {
-//			cleanedValue := removeUnits(data.MonitoringValue)
-//
-//			value, err := strconv.ParseFloat(cleanedValue, 64)
+//		for _, setting := range settings {
+//			// Ambil data monitoring berdasarkan SettingID
+//			monitoringData, err := monitoringDataRepo.FindBySettingID(setting.ID)
 //			if err != nil {
-//				fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
+//				fmt.Printf("Error fetching monitoring data for setting ID %d: %v\n", setting.ID, err)
 //				continue
 //			}
 //
-//			totalMap[data.MonitoringName] += value
-//			countMap[data.MonitoringName]++
-//		}
+//			totalMap := make(map[string]float64)
+//			countMap := make(map[string]int)
 //
-//		for monitoringName, total := range totalMap {
-//			count := countMap[monitoringName]
-//			average := total / float64(count)
+//			for _, data := range monitoringData {
+//				cleanedValue := removeUnits(data.MonitoringValue)
 //
-//			harianData := entities.MonitoringDataHarian{
-//				MonitoringName:  monitoringName,
-//				MonitoringValue: fmt.Sprintf("%.2f", average),
-//				IDSetting:       uint(setting.ID),
-//				CreatedAt:       time.Now(),
-//				UpdatedAt:       time.Now(),
+//				value, err := strconv.ParseFloat(cleanedValue, 64)
+//				if err != nil {
+//					fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
+//					continue
+//				}
+//
+//				totalMap[data.MonitoringName] += value
+//				countMap[data.MonitoringName]++
 //			}
 //
-//			_, err := monitoringDataRepo.SaveHarianData(entities.MonitoringData(harianData))
-//			if err != nil {
-//				fmt.Printf("Error saving harian data for %s (Setting ID %d): %v\n", monitoringName, setting.ID, err)
+//			for monitoringName, total := range totalMap {
+//				count := countMap[monitoringName]
+//				average := total / float64(count)
+//
+//				harianData := entities.MonitoringDataHarian{
+//					MonitoringName:  monitoringName,
+//					MonitoringValue: fmt.Sprintf("%.2f", average),
+//					IDSetting:       uint(setting.ID),
+//					CreatedAt:       time.Now(),
+//					UpdatedAt:       time.Now(),
+//				}
+//
+//				_, err := monitoringDataRepo.SaveHarianData(entities.MonitoringData(harianData))
+//				if err != nil {
+//					fmt.Printf("Error saving harian data for %s (Setting ID %d): %v\n", monitoringName, setting.ID, err)
+//				}
 //			}
 //		}
+//
+//		fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
 //	}
-//
-//	fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
-//}
-
-func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository) {
+func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
 	fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
 
 	monitoringData, err := monitoringDataRepo.FindAll()
@@ -132,51 +130,62 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository) {
 		return
 	}
 
-	totalMap := make(map[string]float64)
-	countMap := make(map[string]int)
-	idSettingMap := make(map[string]int)
+	// Buat map untuk menyimpan data per IDSetting
+	settingDataMap := make(map[uint]map[string][]float64)
+
 	for _, data := range monitoringData {
 		cleanedValue := removeUnits(data.MonitoringValue)
-
-		idSettingMap[data.MonitoringName] = int(data.IDSetting)
 		value, err := strconv.ParseFloat(cleanedValue, 64)
 		if err != nil {
 			fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
 			continue
 		}
 
-		totalMap[data.MonitoringName] += value
-		countMap[data.MonitoringName]++
-	}
-
-	for monitoringName, total := range totalMap {
-		count := countMap[monitoringName]
-		average := total / float64(count)
-
-		harianData := entities.MonitoringData{
-			MonitoringName:  monitoringName,
-			MonitoringValue: fmt.Sprintf("%.2f", average),
-			IDSetting:       uint(idSettingMap[monitoringName]),
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
+		// Buat entri baru di map jika belum ada
+		if _, ok := settingDataMap[data.IDSetting]; !ok {
+			settingDataMap[data.IDSetting] = make(map[string][]float64)
 		}
 
-		_, err := monitoringDataRepo.SaveHarianData(harianData)
-		if err != nil {
-			fmt.Printf("Error saving harian data for %s: %v\n", monitoringName, err)
-		}
-
+		// Simpan nilai berdasarkan MonitoringName
+		settingDataMap[data.IDSetting][data.MonitoringName] = append(settingDataMap[data.IDSetting][data.MonitoringName], value)
 	}
+
+	// Looping setiap IDSetting
+	for idSetting, monitoringMap := range settingDataMap {
+		for monitoringName, values := range monitoringMap {
+			// Hitung total dan rata-rata
+			total := 0.0
+			for _, val := range values {
+				total += val
+			}
+
+			harianData := entities.MonitoringData{
+				MonitoringName:  monitoringName,
+				MonitoringValue: fmt.Sprintf("%.2f", total),
+				IDSetting:       idSetting,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
+			}
+
+			_, err := monitoringDataRepo.SaveHarianData(harianData)
+			if err != nil {
+				fmt.Printf("Error saving harian data for %s (IDSetting %d): %v\n", monitoringName, idSetting, err)
+			}
+		}
+	}
+
+	// Hapus data setelah direkap
 	err = monitoringDataRepo.Truncate()
 	if err != nil {
-		fmt.Printf("Error truncate data for %s: %v\n", err)
+		fmt.Printf("Error truncating data: %v\n", err)
 	}
+
 	fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
 }
 
 func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseCase usecases.SettingUseCase) {
 	for {
-		settings, err := settingUseCase.GetAllSetting()
+		settings, err := settingUseCase.GetAllCornJobs()
 		if err != nil {
 			fmt.Println("Error fetching settings:", err)
 			time.Sleep(5 * time.Second)

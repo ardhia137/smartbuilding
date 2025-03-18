@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
@@ -70,7 +71,7 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 	return &response, nil
 }
 
-func (s *SettingServiceImpl) GetAllSetting() ([]entities.SettingResponse, error) {
+func (s *SettingServiceImpl) GetAllCornJobs() ([]entities.SettingResponse, error) {
 	haosList, err := s.haosRepo.FindAll()
 	if err != nil {
 		return nil, err
@@ -91,8 +92,43 @@ func (s *SettingServiceImpl) GetAllSetting() ([]entities.SettingResponse, error)
 
 	return response, nil
 }
+func (s *SettingServiceImpl) GetAllSetting(role string, userID uint) ([]entities.SettingResponse, error) {
+	var haosList []entities.Setting
+	var err error
+
+	if role == "admin" {
+		haosList, err = s.haosRepo.FindAll()
+	} else {
+		haosList, err = s.haosRepo.FindByUserId(userID)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Jika tidak ada data, return error unauthorized
+	if len(haosList) == 0 {
+		return nil, errors.New("no data")
+	}
+
+	var response []entities.SettingResponse
+	for _, haos := range haosList {
+		response = append(response, entities.SettingResponse{
+			ID:           haos.ID,
+			NamaGedung:   haos.NamaGedung,
+			HaosURL:      haos.HaosURL,
+			HaosToken:    haos.HaosToken,
+			Scheduler:    haos.Scheduler,
+			HargaListrik: haos.HargaListrik,
+			JenisListrik: haos.JenisListrik,
+		})
+	}
+
+	return response, nil
+}
 
 func (s *SettingServiceImpl) GetSettingByID(id int) (*entities.SettingResponse, error) {
+
 	haos, err := s.haosRepo.FindByID(id)
 	if err != nil {
 		return nil, err

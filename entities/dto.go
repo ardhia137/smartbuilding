@@ -5,16 +5,17 @@ import (
 )
 
 type CreateUserRequest struct {
-	Username string `json:"username" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6,max=100"`
-	Role     string `json:"role" binding:"required,oneof=admin manajement mahasiswa"`
+	Username        string                             `json:"username" binding:"required"`
+	Email           string                             `json:"email" binding:"required,email"`
+	Password        string                             `json:"password" binding:"required,min=6,max=100"`
+	Role            string                             `json:"role" binding:"required,oneof=admin manajement pengelola"`
+	PengelolaGedung []CreateUserPengelolaGedungRequest `json:"pengelola_gedung"`
 }
 
 type UpdateUserRequest struct {
 	Username string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
-	Role     string `json:"role" binding:"required,oneof=admin manajement mahasiswa"`
+	Role     string `json:"role" binding:"required,oneof=admin manajement pengelola"`
 }
 
 type UserResponse struct {
@@ -136,8 +137,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
-	Role  string `json:"role"`
+	Token  string `json:"token"`
+	Role   string `json:"role"`
+	UserId string `json:"user_id"`
 }
 
 type CreateMonitoringDataRequest struct {
@@ -259,4 +261,27 @@ type DataTorenResponse struct {
 	MonitoringName string `json:"monitoring_name"`
 	KapasitasToren int    `json:"kapasitas_toren"`
 	IDSetting      int    `json:"id_setting"`
+}
+
+type CreatePengelolaGedungRequest struct {
+	UserID    int `json:"id_user" binding:"required"`
+	SettingID int `json:"id_setting" binding:"required"`
+}
+
+type CreateUserPengelolaGedungRequest struct {
+	SettingID int `json:"setting_id" binding:"required"`
+}
+
+type PengelolaGedungResponse struct {
+	ID        uint `json:"id"`
+	UserID    int  `json:"id_user"`
+	SettingID int  `json:"id_setting"`
+}
+
+type AllPengelolaGedungResponse struct {
+	ID         uint   `json:"id"`
+	NamaGedung string `json:"nama_gedung"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	Role       string `json:"role"`
 }

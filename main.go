@@ -66,11 +66,16 @@ func main() {
 	settingUsecase := usecases.SettingUseCase(settingService)
 	settingController := controllers.NewSettingController(settingUsecase)
 
+	pengelolaGedungRepository := repositories.NewPengelolaGedungRepository(config.DB)
+	pengelolaGedungService := services.NewPengelolaGedungService(pengelolaGedungRepository)
+	pengelolaGedungUsecase := usecases.PengelolaGedungUseCase(pengelolaGedungService)
+	pengelolaGedungController := controllers.NewPengelolaGedungController(pengelolaGedungUsecase)
+
 	log.Println("Initializing monitoring data repository, service, and use case...")
 	monitoringDataRepository := repositories.NewMonitoringDataRepository(config.DB)
 	monitoringDataService := services.NewMonitoringDataService(monitoringDataRepository, dataTorenRepository, settingRepository)
 	monitoringDataUsecase := usecases.MonitoringDataUseCase(monitoringDataService)
-	monitoringDataController := controllers.NewMonitoringDataController(monitoringDataUsecase)
+	monitoringDataController := controllers.NewMonitoringDataController(monitoringDataUsecase, pengelolaGedungUsecase)
 
 	log.Println("Starting Monitoring Data cron job in the background...")
 	go utils.StartMonitoringDataJob(monitoringDataUsecase, settingUsecase, monitoringDataRepository, settingRepository)
@@ -100,6 +105,7 @@ func main() {
 	infrastructure.RegisterMonitoringDataRoutes(router, monitoringDataController)
 	infrastructure.RegisterSettingRoutes(router, settingController)
 	infrastructure.RegisterDataTorenRoutes(router, dataTorenController)
+	infrastructure.RegisterPengelolaGedungRoutes(router, pengelolaGedungController)
 
 	log.Println("Starting server on port 3000...")
 	err := router.Run(":3000")

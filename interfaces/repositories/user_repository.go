@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"gorm.io/gorm"
 	"smartbuilding/entities"
 )
 
@@ -10,4 +11,5 @@ type UserRepository interface {
 	Create(user entities.User) (entities.User, error)
 	Update(id uint, user entities.User) (entities.User, error)
 	Delete(id uint) error
+	WithTransaction() *gorm.DB
 }

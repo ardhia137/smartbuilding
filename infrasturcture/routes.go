@@ -81,7 +81,7 @@ func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthCont
 
 func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {
 	apiRoutes := router.Group("/api")
-	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
+	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
 	{
 		apiRoutes.GET("/monitoring_air/:id", monitoringDataController.GetAirMonitoringData)
 		apiRoutes.GET("/monitoring_listrik/:id", monitoringDataController.GetListrikMonitoringData)
@@ -92,14 +92,13 @@ func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *
 func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.SettingController) {
 	apiGroup := router.Group("/api")
 	settingRoutes := apiGroup.Group("/setting")
-	settingRoutes.Use(utils.RoleMiddleware("admin"))
+	settingRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
 	{
 		settingRoutes.GET("", settingController.GetAllSetting)
 		settingRoutes.POST("", settingController.CreateSetting)
 		settingRoutes.GET("/:id", settingController.GetSettingByID)
 		settingRoutes.PUT("/:id", settingController.UpdateSetting)
 		settingRoutes.DELETE("/:id", settingController.DeleteSetting)
-
 	}
 }
 
@@ -114,6 +113,21 @@ func RegisterDataTorenRoutes(router *gin.Engine, dataTorenController *controller
 		dataTorenRoutes.GET("/setting/:id", dataTorenController.GetDataTorenBySettingID)
 		dataTorenRoutes.PUT("/:id", dataTorenController.UpdateDataToren)
 		dataTorenRoutes.DELETE("/:id", dataTorenController.DeleteDataToren)
+
+	}
+}
+
+func RegisterPengelolaGedungRoutes(router *gin.Engine, pengelolaGedungController *controllers.PengelolaGedungController) {
+	apiGroup := router.Group("/api")
+	pengelolaGedungRoutes := apiGroup.Group("/pengelolaGedung")
+	pengelolaGedungRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	{
+		pengelolaGedungRoutes.GET("", pengelolaGedungController.GetAllPengelolaGedung)
+		pengelolaGedungRoutes.POST("", pengelolaGedungController.CreatePengelolaGedung)
+		pengelolaGedungRoutes.GET("/:id", pengelolaGedungController.GetPengelolaGedungBySettingID)
+		//pengelolaGedungRoutes.GET("/setting/:id", pengelolaGedungController.GetPengelolaGedungBySettingID)
+		pengelolaGedungRoutes.PUT("/:id", pengelolaGedungController.UpdatePengelolaGedung)
+		pengelolaGedungRoutes.DELETE("/:id", pengelolaGedungController.DeletePengelolaGedung)
 
 	}
 }

@@ -41,6 +41,22 @@ func (r *SettingRepositoryImpl) FindByID(id int) (*entities.Setting, error) {
 	return &setting, nil
 }
 
+func (r *SettingRepositoryImpl) FindByUserId(userID uint) ([]entities.Setting, error) {
+	var settingList []entities.Setting
+
+	err := r.db.
+		Joins("JOIN pengelola_gedung pg ON setting.id = pg.setting_id").
+		Joins("JOIN user u ON u.id = pg.user_id").
+		Where("u.id = ?", userID).
+		Find(&settingList).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return settingList, nil
+}
+
 func (r *SettingRepositoryImpl) Update(setting *entities.Setting) (*entities.Setting, error) {
 	if err := r.db.Save(setting).Error; err != nil {
 		return nil, err
