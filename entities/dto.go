@@ -137,9 +137,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token  string `json:"token"`
-	Role   string `json:"role"`
-	UserId string `json:"user_id"`
+	Token   string    `json:"token"`
+	Role    string    `json:"role"`
+	UserId  string    `json:"user_id"`
+	Setting []Setting `json:"Setting"`
 }
 
 type CreateMonitoringDataRequest struct {

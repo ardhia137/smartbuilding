@@ -81,7 +81,7 @@ func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthCont
 
 func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {
 	apiRoutes := router.Group("/api")
-	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	{
 		apiRoutes.GET("/monitoring_air/:id", monitoringDataController.GetAirMonitoringData)
 		apiRoutes.GET("/monitoring_listrik/:id", monitoringDataController.GetListrikMonitoringData)
@@ -92,7 +92,7 @@ func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *
 func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.SettingController) {
 	apiGroup := router.Group("/api")
 	settingRoutes := apiGroup.Group("/setting")
-	settingRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	settingRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	{
 		settingRoutes.GET("", settingController.GetAllSetting)
 		settingRoutes.POST("", settingController.CreateSetting)

@@ -48,12 +48,6 @@ func main() {
 	penyewaKamarUsecase := usecases.PenyewaKamarUseCase(penyewaKamarService)
 	penyewaKamarController := controllers.NewPenyewaKamarController(penyewaKamarUsecase)
 
-	log.Println("Initializing auth repository, service, and use case...")
-	authRepository := repositories.NewAuthRepository(config.DB)
-	authService := services.NewAuthService(authRepository)
-	authUsecase := usecases.AuthUseCase(authService)
-	authController := controllers.NewAuthController(authUsecase)
-
 	log.Println("Initializing data toren repository, service, and use case...")
 	dataTorenRepository := repositories.NewDataTorenRepository(config.DB)
 	dataTorenService := services.NewDataTorenService(dataTorenRepository)
@@ -76,6 +70,12 @@ func main() {
 	monitoringDataService := services.NewMonitoringDataService(monitoringDataRepository, dataTorenRepository, settingRepository)
 	monitoringDataUsecase := usecases.MonitoringDataUseCase(monitoringDataService)
 	monitoringDataController := controllers.NewMonitoringDataController(monitoringDataUsecase, pengelolaGedungUsecase)
+
+	log.Println("Initializing auth repository, service, and use case...")
+	authRepository := repositories.NewAuthRepository(config.DB)
+	authService := services.NewAuthService(authRepository, settingRepository)
+	authUsecase := usecases.AuthUseCase(authService)
+	authController := controllers.NewAuthController(authUsecase)
 
 	log.Println("Starting Monitoring Data cron job in the background...")
 	go utils.StartMonitoringDataJob(monitoringDataUsecase, settingUsecase, monitoringDataRepository, settingRepository)

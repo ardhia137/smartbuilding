@@ -11,13 +11,13 @@ import (
 )
 
 type authServiceImpl struct {
-	authRepo repositories.AuthRepository
+	authRepo    repositories.AuthRepository
+	settingRepo repositories.SettingRepository
 }
 
-func NewAuthService(authRepo repositories.AuthRepository) services.AuthService {
-	return &authServiceImpl{authRepo}
+func NewAuthService(authRepo repositories.AuthRepository, settingRepo repositories.SettingRepository) services.AuthService {
+	return &authServiceImpl{authRepo, settingRepo}
 }
-
 func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse, error) {
 	user, err := s.authRepo.FindUserByEmail(email)
 	if err != nil {
@@ -34,7 +34,22 @@ func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse,
 		return entities.LoginResponse{}, errors.New("failed to generate token")
 	}
 
-	return entities.LoginResponse{Token: token, Role: user.Role, UserId: strconv.Itoa(int(user.ID))}, nil
+	var setting []entities.Setting
+	if user.Role == "admin" {
+		setting, err = s.settingRepo.FindAll()
+	} else {
+		setting, err = s.settingRepo.FindByUserId(user.ID)
+	}
+	if err != nil {
+		return entities.LoginResponse{}, errors.New("setting not found")
+	}
+
+	return entities.LoginResponse{
+		Token:   token,
+		Role:    user.Role,
+		UserId:  strconv.FormatUint(uint64(user.ID), 10),
+		Setting: setting,
+	}, nil
 }
 
 func (s *authServiceImpl) ValidateToken(token string) (*entities.User, error) {
