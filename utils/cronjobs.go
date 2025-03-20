@@ -52,7 +52,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	}
 
 	// Jadwalkan rekap harian
-	_, err = c.AddFunc("01 22 * * *", func() {
+	_, err = c.AddFunc("47 22 * * *", func() {
 		rekapHarian(monitoringDataRepo, settingRepo)
 	})
 	if err != nil {

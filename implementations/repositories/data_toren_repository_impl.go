@@ -31,7 +31,7 @@ func (r *DataTorenRepositoryImpl) FindAll() ([]entities.DataToren, error) {
 
 func (r *DataTorenRepositoryImpl) FindBySettingID(id int) ([]entities.DataToren, error) {
 	var dataTorenList []entities.DataToren
-	if err := r.db.Find(&dataTorenList).Where("id_setting = ?", id).Error; err != nil {
+	if err := r.db.Where("id_setting = ?", id).Find(&dataTorenList).Error; err != nil {
 		return nil, err
 	}
 	return dataTorenList, nil

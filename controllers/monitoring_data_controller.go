@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"smartbuilding/entities"
@@ -45,8 +44,6 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 	role, _ := roleInterface.(string)
 	userIDInterface, _ := ctx.Get("user_id")
 	userID, _ := userIDInterface.(uint)
-
-	fmt.Println(userID)
 
 	// Jika user adalah admin, langsung ambil data
 	if role == "admin" {
@@ -94,8 +91,6 @@ func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
 	role, _ := roleInterface.(string)
 	userIDInterface, _ := ctx.Get("user_id")
 	userID, _ := userIDInterface.(uint)
-
-	fmt.Println(userID)
 
 	// Jika user adalah admin, langsung ambil data
 	if role == "admin" {
