@@ -10,6 +10,7 @@ import (
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/usecases"
 	"strconv"
+	"strings"
 
 	//"strconv"
 	"time"
@@ -51,7 +52,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	}
 
 	// Jadwalkan rekap harian
-	_, err = c.AddFunc("59 23 * * *", func() {
+	_, err = c.AddFunc("01 22 * * *", func() {
 		rekapHarian(monitoringDataRepo, settingRepo)
 	})
 	if err != nil {
@@ -153,10 +154,18 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 	// Looping setiap IDSetting
 	for idSetting, monitoringMap := range settingDataMap {
 		for monitoringName, values := range monitoringMap {
-			// Hitung total dan rata-rata
 			total := 0.0
-			for _, val := range values {
-				total += val
+
+			if strings.HasPrefix(monitoringName, "monitoring_air_total_water_flow_") {
+				// Gunakan nilai terakhir jika ada
+				if len(values) > 0 {
+					total = values[len(values)-1]
+				}
+			} else {
+				// Hitung total dari semua nilai
+				for _, val := range values {
+					total += val
+				}
 			}
 
 			harianData := entities.MonitoringData{
