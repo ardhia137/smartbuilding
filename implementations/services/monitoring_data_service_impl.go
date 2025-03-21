@@ -159,7 +159,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 
 	for _, harian := range monitoringDataHarian {
 		if strings.HasPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_") {
-			pipa := strings.TrimPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_")
+			pipa := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
 			volume, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " L"), 64)
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
 

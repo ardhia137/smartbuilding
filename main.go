@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"log"
 	"smartbuilding/config"
 	"smartbuilding/controllers"
 	"smartbuilding/implementations/repositories"
 	"smartbuilding/implementations/services"
-	"smartbuilding/infrasturcture"
+	infrastructure "smartbuilding/infrasturcture"
 	"smartbuilding/usecases"
 	"smartbuilding/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -59,7 +60,7 @@ func main() {
 	log.Println("Setting up routes...")
 	router := gin.Default()
 	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
