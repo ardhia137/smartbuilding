@@ -18,9 +18,14 @@ func main() {
 	log.Println("Connecting to the database...")
 	config.InitDB()
 
+	pengelolaGedungRepository := repositories.NewPengelolaGedungRepository(config.DB)
+	pengelolaGedungService := services.NewPengelolaGedungService(pengelolaGedungRepository)
+	pengelolaGedungUsecase := usecases.PengelolaGedungUseCase(pengelolaGedungService)
+	pengelolaGedungController := controllers.NewPengelolaGedungController(pengelolaGedungUsecase)
+
 	log.Println("Initializing User repository, service, and use case...")
 	userRepository := repositories.NewUserRepository(config.DB)
-	userService := services.NewUserService(userRepository)
+	userService := services.NewUserService(userRepository, pengelolaGedungRepository)
 	userUseCase := usecases.UserUseCase(userService)
 	userController := controllers.NewUserController(userUseCase)
 
@@ -59,11 +64,6 @@ func main() {
 	settingService := services.NewSettingService(settingRepository, dataTorenRepository)
 	settingUsecase := usecases.SettingUseCase(settingService)
 	settingController := controllers.NewSettingController(settingUsecase)
-
-	pengelolaGedungRepository := repositories.NewPengelolaGedungRepository(config.DB)
-	pengelolaGedungService := services.NewPengelolaGedungService(pengelolaGedungRepository)
-	pengelolaGedungUsecase := usecases.PengelolaGedungUseCase(pengelolaGedungService)
-	pengelolaGedungController := controllers.NewPengelolaGedungController(pengelolaGedungUsecase)
 
 	log.Println("Initializing monitoring data repository, service, and use case...")
 	monitoringDataRepository := repositories.NewMonitoringDataRepository(config.DB)

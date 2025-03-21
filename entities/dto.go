@@ -285,4 +285,5 @@ type AllPengelolaGedungResponse struct {
 	Username   string `json:"username"`
 	Email      string `json:"email"`
 	Role       string `json:"role"`
+	SettingID  int    `json:"setting_id"`
 }

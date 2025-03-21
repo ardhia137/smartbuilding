@@ -40,7 +40,6 @@ func (s *PengelolaGedungServiceImpl) GetAllPengelolaGedung() ([]entities.AllPeng
 	if err != nil {
 		return nil, err
 	}
-
 	var response []entities.AllPengelolaGedungResponse
 	for _, pengelolaGedung := range pengelolaGedungList {
 		response = append(response, entities.AllPengelolaGedungResponse{
@@ -49,6 +48,7 @@ func (s *PengelolaGedungServiceImpl) GetAllPengelolaGedung() ([]entities.AllPeng
 			Username:   pengelolaGedung.Username,
 			Email:      pengelolaGedung.Email,
 			Role:       pengelolaGedung.Role,
+			SettingID:  pengelolaGedung.SettingID,
 		})
 	}
 	fmt.Println(response)
@@ -88,6 +88,7 @@ func (s *PengelolaGedungServiceImpl) GetPengelolaGedungByUser(userID int) ([]ent
 			Username:   pengelolaGedung.Username,
 			Email:      pengelolaGedung.Email,
 			Role:       pengelolaGedung.Role,
+			SettingID:  pengelolaGedung.SettingID,
 		})
 	}
 

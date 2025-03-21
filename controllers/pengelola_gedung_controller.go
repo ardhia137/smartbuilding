@@ -61,7 +61,6 @@ func (c *PengelolaGedungController) GetAllPengelolaGedung(ctx *gin.Context) {
 		response interface{}
 		err      error
 	)
-
 	if role == "admin" {
 		response, err = c.pengelolaGedungUseCase.GetAllPengelolaGedung()
 	} else {

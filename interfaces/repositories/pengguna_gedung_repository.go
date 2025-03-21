@@ -10,6 +10,7 @@ type PengelolaGedungRepository interface {
 	FindByID(id int) (*entities.PengelolaGedung, error)
 	FindBySettingIDUser(id int, userID int) ([]entities.PengelolaGedung, error)
 	FindBySettingUser(userID int) ([]entities.AllPengelolaGedungResponse, error)
+	FindByUser(userID int) ([]entities.PengelolaGedung, error)
 	Update(dataToren *entities.PengelolaGedung) (*entities.PengelolaGedung, error)
 	Delete(id int) error
 }

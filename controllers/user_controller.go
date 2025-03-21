@@ -58,7 +58,6 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 		"data":    user,
 	})
 }
-
 func (c *UserController) CreateUser(ctx *gin.Context) {
 	var request entities.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -69,7 +68,29 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
-	user, err := c.userUseCase.CreateFromAdmin(request)
+
+	roleInterface, _ := ctx.Get("role")
+	role, _ := roleInterface.(string)
+
+	userIDInterface, _ := ctx.Get("user_id")
+	var userID uint
+	if userIDFloat, ok := userIDInterface.(float64); ok {
+		userID = uint(userIDFloat)
+	} else if userIDUint, ok := userIDInterface.(uint); ok {
+		userID = userIDUint
+	}
+
+	var (
+		user entities.UserResponse
+		err  error
+	)
+
+	if role == "admin" {
+		user, err = c.userUseCase.CreateFromAdmin(request)
+	} else {
+		user, err = c.userUseCase.CreateFromManajement(userID, request)
+	}
+
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
@@ -78,6 +99,7 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 		})
 		return
 	}
+
 	ctx.JSON(http.StatusCreated, gin.H{
 		"status":  "success",
 		"message": "User created successfully",

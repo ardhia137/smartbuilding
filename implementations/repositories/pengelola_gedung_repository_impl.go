@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
@@ -24,7 +25,7 @@ func (r *PengelolaGedungRepositoryImpl) Create(pengelolaGedung *entities.Pengelo
 func (r *PengelolaGedungRepositoryImpl) FindAll() ([]entities.AllPengelolaGedungResponse, error) {
 	var pengelolaGedungList []entities.AllPengelolaGedungResponse
 	err := r.db.Table("pengelola_gedung pg").
-		Select("pg.id,s.nama_gedung, u.username, u.email,u.role").
+		Select("pg.id,s.nama_gedung, u.username, u.email,u.role,pg.setting_id").
 		Joins("JOIN setting s ON pg.setting_id = s.id").
 		Joins("JOIN user u ON pg.user_id = u.id").
 		Scan(&pengelolaGedungList).Error
@@ -49,6 +50,20 @@ func (r *PengelolaGedungRepositoryImpl) FindBySettingIDUser(id int, userID int) 
 	return pengelolaGedungList, nil
 }
 
+func (r *PengelolaGedungRepositoryImpl) FindByUser(userID int) ([]entities.PengelolaGedung, error) {
+	var pengelolaGedungList []entities.PengelolaGedung
+	err := r.db.
+		Where("user_id = ?", userID).
+		Find(&pengelolaGedungList).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(pengelolaGedungList)
+
+	return pengelolaGedungList, nil
+}
+
 func (r *PengelolaGedungRepositoryImpl) FindBySettingUser(userID int) ([]entities.AllPengelolaGedungResponse, error) {
 	var pengelolaGedungList []entities.AllPengelolaGedungResponse
 	subQuery := r.db.Table("pengelola_gedung").
@@ -56,7 +71,7 @@ func (r *PengelolaGedungRepositoryImpl) FindBySettingUser(userID int) ([]entitie
 		Where("user_id = ?", userID)
 
 	err := r.db.Table("pengelola_gedung pg").
-		Select("pg.id,s.nama_gedung, u.username, u.email,u.role").
+		Select("pg.id,s.nama_gedung, u.username, u.email,u.role,pg.setting_id").
 		Joins("JOIN setting s ON pg.setting_id = s.id").
 		Joins("JOIN user u ON pg.user_id = u.id").
 		Where("pg.setting_id IN (?)", subQuery).
