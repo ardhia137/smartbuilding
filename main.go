@@ -80,8 +80,8 @@ func main() {
 	infrastructure.RegisterDataTorenRoutes(router, dataTorenController)
 	infrastructure.RegisterPengelolaGedungRoutes(router, pengelolaGedungController)
 
-	log.Println("Starting server on port 3000...")
-	err := router.Run(":3000")
+	log.Println("Starting server on port 1312...")
+	err := router.Run(":1312")
 
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
