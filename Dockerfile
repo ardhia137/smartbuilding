@@ -23,7 +23,7 @@ WORKDIR /root/
 COPY --from=builder /app/smartbuilding .
 
 # Ekspos port yang digunakan aplikasi
-EXPOSE 8080
+EXPOSE 1312
 
 # Jalankan aplikasi
 CMD ["./smartbuilding"]

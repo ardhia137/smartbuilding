@@ -262,29 +262,58 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	var totalDaya []entities.TotalDayaListrik
 	totalBiaya := []entities.BiayaListrik{} // Map untuk menyimpan total biaya
 
-	totalDayaMap := make(map[string]float64)  // Untuk menyimpan sementara sebelum konversi ke slice
-	totalBiayaMap := make(map[string]float64) // Untuk menyimpan sementara sebelum konversi ke slice
-
-	for _, data := range monitoringData {
+	totalDayaMap := make(map[string]float64)    // Untuk menyimpan sementara sebelum konversi ke slice
+	totalBiayaMap := make(map[string]float64)   // Untuk menyimpan sementara sebelum konversi ke slice
+	totalJumlahData := make(map[string]float64) // Untuk menyimpan sementara sebelum konversi ke slice
+	for i, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
-		var kw, kwh float64
+		var kw float64
 
+		// Hitung daya berdasarkan jenis listrik
 		if jenisListrik == "1_phase" {
 			kw = 220 * arus * 0.8 / 1000
-			kwh = kw * (schadule / 3600.0)
 		} else if jenisListrik == "3_phase" {
 			kw = 1.732 * 380 * arus * 0.8 / 1000
-			kwh = kw * (schadule / 3600.0)
 		}
 
+		// Tentukan createdAt (paling awal) dan updatedAt (paling akhir)
+		if i == 0 || data.CreatedAt.Before(createdAt) {
+			createdAt = data.CreatedAt
+		}
+		if i == 0 || data.UpdatedAt.After(updatedAt) {
+			updatedAt = data.UpdatedAt
+		}
+
+		// Hitung total daya & biaya
 		if data.MonitoringName != "" {
 			totalDayaMap[data.MonitoringName] += kw
-			totalBiayaMap[data.MonitoringName] += kwh * float64(tarifListrik)
 		}
 
 		totalWatt += kw
-		createdAt = data.CreatedAt
-		updatedAt = data.UpdatedAt
+	}
+
+	// Hitung selisih waktu dalam detik
+	seconds := int(updatedAt.Sub(createdAt).Seconds())
+
+	// Hindari pembagian dengan 0
+	if seconds > 0 {
+		for _, data := range monitoringData {
+			arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
+			var kw, kwh float64
+
+			if jenisListrik == "1_phase" {
+				kw = 220 * arus * 0.8 / 1000
+			} else if jenisListrik == "3_phase" {
+				kw = 1.732 * 380 * arus * 0.8 / 1000
+			}
+
+			kwh = kw * (schadule / float64(seconds))
+
+			if data.MonitoringName != "" {
+				totalBiayaMap[data.MonitoringName] += kwh * float64(tarifListrik)
+				totalJumlahData[data.MonitoringName]++
+			}
+		}
 	}
 
 	// Konversi map ke slice
@@ -311,11 +340,15 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			arus, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " A"), 64)
 			var kw, kwh float64
 			if jenisListrik == "1_phase" {
-				kw = 220 * arus * 0.8 / 1000
+				jumlahSampel := 86400 / schadule
+				Rarus := arus / jumlahSampel
+				kw = 220 * Rarus * 0.8 / 1000
 				kwh = kw / 24
 			} else if jenisListrik == "3_phase" {
-				kw = 1.732 * 380 * arus * 0.8 / 1000
-				kwh = kw / 24
+				jumlahSampel := 86400 / schadule
+				Rarus := arus / jumlahSampel
+				kw = 1.732 * 380 * Rarus * 0.8 / 1000
+				kwh = kw * 24
 			}
 
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
@@ -329,14 +362,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 
 				if existing, ok := dataPenggunaanHarian[hari][harian.MonitoringName]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
 					existingValue += kw
-					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
+					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanHarian[hari][harian.MonitoringName] = existing
 				} else {
 					dataPenggunaanHarian[hari][harian.MonitoringName] = entities.PenggunaanListrik{
 						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
-						Value: fmt.Sprintf("%.2f kW", kw),
+						Value: fmt.Sprintf("%.2f Kwh", kwh),
 					}
 				}
 
@@ -353,10 +386,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 			}
 
-			_, minggu := harian.CreatedAt.ISOWeek()
-			if harian.CreatedAt.Month() != time.Month(minggu) {
-				minggu = 1
-			}
+			minggu := getMingguKe(now)
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
 			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
@@ -368,14 +398,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 
 				if existing, ok := dataPenggunaanMingguan[mingguanKey][harian.MonitoringName]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
 					existingValue += kw
-					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
+					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanMingguan[mingguanKey][harian.MonitoringName] = existing
 				} else {
 					dataPenggunaanMingguan[mingguanKey][harian.MonitoringName] = entities.PenggunaanListrik{
 						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
-						Value: fmt.Sprintf("%.2f kW", kw),
+						Value: fmt.Sprintf("%.2f Kwh", kwh),
 					}
 				}
 
@@ -403,14 +433,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 
 				if existing, ok := dataPenggunaanTahunan[bulanHarian][harian.MonitoringName]; ok {
-					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " kW"), 64)
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
 					existingValue += kw
-					existing.Value = fmt.Sprintf("%.2f kW", existingValue)
+					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanTahunan[bulanHarian][harian.MonitoringName] = existing
 				} else {
 					dataPenggunaanTahunan[bulanHarian][harian.MonitoringName] = entities.PenggunaanListrik{
 						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
-						Value: fmt.Sprintf("%.2f kW", kw),
+						Value: fmt.Sprintf("%.2f Kwh", kwh),
 					}
 				}
 
@@ -487,6 +517,15 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 func getHariIndonesia(weekday time.Weekday) string {
 	hari := []string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
 	return hari[weekday]
+}
+
+func getMingguKe(t time.Time) int {
+	awalBulan := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	offsetHari := int(awalBulan.Weekday()) // Hari pertama dalam minggu (0 = Minggu, 1 = Senin, ..., 6 = Sabtu)
+	hariDalamBulan := t.Day()
+
+	mingguKe := ((hariDalamBulan + offsetHari - 1) / 7) + 1
+	return mingguKe
 }
 
 func getBulanIndonesia(month time.Month) string {
