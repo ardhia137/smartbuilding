@@ -152,16 +152,18 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 	for _, toren := range kapasitasTorenMap {
 		kapasitasToren = append(kapasitasToren, toren)
 	}
+
 	now := time.Now()
 	year, month, _ := now.Date()
-	startOfWeek := now.AddDate(0, 0, -int(now.Weekday())+1)
-	endOfWeek := startOfWeek.AddDate(0, 0, 6)
+	startOfWeek := getStartOfWeek(now)
+	endOfWeek := getEndOfWeek(startOfWeek)
 
 	for _, harian := range monitoringDataHarian {
 		if strings.HasPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_") {
 			pipa := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
 			volume, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " L"), 64)
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
+			fmt.Println("DEBUG:", harian.CreatedAt, ">", startOfWeek, "&&", harian.CreatedAt, "<", endOfWeek)
 
 			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
 				dataPenggunaanHarian[hari] = append(dataPenggunaanHarian[hari], entities.PenggunaanAir{
@@ -295,6 +297,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	// Hitung selisih waktu dalam detik
 	seconds := int(updatedAt.Sub(createdAt).Seconds())
 
+	fmt.Println(seconds)
 	// Hindari pembagian dengan 0
 	if seconds > 0 {
 		for _, data := range monitoringData {
@@ -308,7 +311,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			}
 
 			kwh = kw * (schadule / float64(seconds))
-
 			if data.MonitoringName != "" {
 				totalBiayaMap[data.MonitoringName] += kwh * float64(tarifListrik)
 				totalJumlahData[data.MonitoringName]++
@@ -332,8 +334,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	now := time.Now()
 	year, month, _ := now.Date()
-	startOfWeek := now.AddDate(0, 0, -int(now.Weekday())+1)
-	endOfWeek := startOfWeek.AddDate(0, 0, 6)
+	startOfWeek := getStartOfWeek(now)
+	endOfWeek := getEndOfWeek(startOfWeek)
 
 	for _, harian := range monitoringDataHarian {
 		if strings.Contains(harian.MonitoringName, "arus_listrik") {
@@ -386,7 +388,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 			}
 
-			minggu := getMingguKe(now)
+			_, minggu := harian.CreatedAt.ISOWeek()
+			if harian.CreatedAt.Month() != time.Month(minggu) {
+				minggu = 1
+			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
 			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
@@ -519,13 +524,18 @@ func getHariIndonesia(weekday time.Weekday) string {
 	return hari[weekday]
 }
 
-func getMingguKe(t time.Time) int {
-	awalBulan := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
-	offsetHari := int(awalBulan.Weekday()) // Hari pertama dalam minggu (0 = Minggu, 1 = Senin, ..., 6 = Sabtu)
-	hariDalamBulan := t.Day()
+func getStartOfWeek(t time.Time) time.Time {
+	weekday := int(t.Weekday())
+	if weekday == 0 {
+		weekday = 7 // Ubah Minggu jadi 7
+	}
+	// Mulai dari jam 00:00
+	return time.Date(t.Year(), t.Month(), t.Day()-(weekday-1), 0, 0, 0, 0, t.Location())
+}
 
-	mingguKe := ((hariDalamBulan + offsetHari - 1) / 7) + 1
-	return mingguKe
+func getEndOfWeek(start time.Time) time.Time {
+	// Akhir minggu jam 23:59:59
+	return time.Date(start.Year(), start.Month(), start.Day()+6, 23, 59, 59, 0, start.Location())
 }
 
 func getBulanIndonesia(month time.Month) string {
