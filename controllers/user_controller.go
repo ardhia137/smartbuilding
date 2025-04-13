@@ -166,3 +166,51 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 		"message": "User deleted successfully",
 	})
 }
+
+func (c *UserController) GetMe(ctx *gin.Context) {
+	userIDInterface, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status":  "error",
+			"message": "User ID not found",
+		})
+		return
+	}
+
+	// Handle different types of user_id from context
+	var userID uint
+	if userIDFloat, ok := userIDInterface.(float64); ok {
+		userID = uint(userIDFloat)
+	} else if userIDUint, ok := userIDInterface.(uint); ok {
+		userID = userIDUint
+	} else {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status":  "error",
+			"message": "Invalid user ID type",
+		})
+		return
+	}
+
+	user, err := c.userUseCase.GetUserByID(userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Failed to retrieve user data",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	response := entities.UserResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "User data retrieved successfully",
+		"data":    response,
+	})
+}

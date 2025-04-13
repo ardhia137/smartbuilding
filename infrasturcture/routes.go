@@ -8,6 +8,7 @@ import (
 
 func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserController) {
 	apiGroup := router.Group("/api")
+
 	userRoutes := apiGroup.Group("/users")
 	userRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
 	{
@@ -16,6 +17,7 @@ func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserCont
 		userRoutes.GET("/:id", userController.GetUserByID)
 		userRoutes.PUT("/:id", userController.UpdateUser)
 		userRoutes.DELETE("/:id", userController.DeleteUser)
+		userRoutes.GET("/me", userController.GetMe)
 	}
 }
 
