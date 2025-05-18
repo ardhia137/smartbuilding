@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -124,5 +125,42 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  "success",
 		"message": "User logged out successfully",
+	})
+}
+func (c *AuthController) ChangePassword(ctx *gin.Context) {
+	token := ctx.GetHeader("Authorization")
+
+	if token == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Token is required",
+		})
+		return
+	}
+
+	var req entities.ChangePasswordRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	err := c.authUseCase.ChangePassword(token, req.OldPassword, req.NewPassword)
+	fmt.Println(err)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status":  "error",
+			"message": "Failed to change password",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Password changed successfully",
 	})
 }

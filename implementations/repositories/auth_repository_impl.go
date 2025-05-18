@@ -22,3 +22,10 @@ func (r *authRepositoryImpl) FindUserByEmail(email string) (*entities.User, erro
 	}
 	return &user, nil
 }
+func (r *authRepositoryImpl) ChangePassword(user *entities.User) error {
+	if err := r.db.Save(&user).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

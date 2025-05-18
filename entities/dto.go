@@ -37,6 +37,11 @@ type LoginResponse struct {
 	Setting []Setting `json:"Setting"`
 }
 
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required,min=6"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
 type CreateMonitoringDataRequest struct {
 	MonitoringName  string `json:"monitoring_name" validate:"required"`
 	MonitoringValue string `json:"monitoring_value" validate:"required"`

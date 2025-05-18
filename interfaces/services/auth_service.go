@@ -7,4 +7,5 @@ type AuthService interface {
 	ValidateToken(token string) (*entities.User, error)
 	RefreshToken(token string) (entities.LoginResponse, error)
 	Logout(token string) error
+	ChangePassword(token, old_password, new_password string) error
 }

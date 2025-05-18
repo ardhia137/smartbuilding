@@ -2,12 +2,14 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
 	"smartbuilding/utils"
 	"strconv"
+	"strings"
 )
 
 type authServiceImpl struct {
@@ -81,5 +83,34 @@ func (s *authServiceImpl) RefreshToken(token string) (entities.LoginResponse, er
 }
 
 func (s *authServiceImpl) Logout(token string) error {
+	return nil
+}
+func (s *authServiceImpl) ChangePassword(token, oldPassword, newPassword string) error {
+	token = strings.TrimPrefix(token, "Bearer ")
+	claims, err := utils.VerifyToken(token)
+	fmt.Println(err)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	user, err := s.authRepo.FindUserByEmail(claims.Email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword))
+	if err != nil {
+		return errors.New("old password is incorrect")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("failed to hash new password")
+	}
+	user.Password = string(hashedPassword)
+	err = s.authRepo.ChangePassword(user)
+	if err != nil {
+		return errors.New("failed to update password")
+	}
+
 	return nil
 }

@@ -27,7 +27,10 @@ func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthCont
 	{
 		authRoutes.POST("/login", authController.Login)
 		authRoutes.POST("/logout", authController.Logout)
+
 	}
+	apiGroup.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
+	apiGroup.POST("/change-password", authController.ChangePassword)
 }
 
 func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {

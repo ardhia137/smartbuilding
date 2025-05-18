@@ -20,11 +20,15 @@ var (
 	c              *cron.Cron
 	cronJobIDs     map[int]cron.EntryID // Menyimpan ID cron job untuk setiap setting
 	lastSchedulers map[int]int          // Menyimpan last scheduler untuk setiap setting
+	lastHaosURL    map[int]string
+	lastHaosToken  map[int]string
 )
 
 func init() {
 	cronJobIDs = make(map[int]cron.EntryID)
 	lastSchedulers = make(map[int]int)
+	lastHaosURL = make(map[int]string)
+	lastHaosToken = make(map[int]string)
 }
 
 func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCase usecases.SettingUseCase, monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
@@ -49,6 +53,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 
 		cronJobIDs[setting.ID] = cronJobID
 		lastSchedulers[setting.ID] = setting.Scheduler
+		lastHaosURL[setting.ID] = setting.HaosURL
 	}
 
 	// Jadwalkan rekap harian
@@ -67,61 +72,6 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	select {}
 }
 
-//	func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
-//		fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
-//
-//		// Ambil semua settings untuk rekap harian
-//		settings, err := settingRepo.FindAll()
-//		if err != nil {
-//			fmt.Println("Error fetching settings:", err)
-//			return
-//		}
-//
-//		for _, setting := range settings {
-//			// Ambil data monitoring berdasarkan SettingID
-//			monitoringData, err := monitoringDataRepo.FindBySettingID(setting.ID)
-//			if err != nil {
-//				fmt.Printf("Error fetching monitoring data for setting ID %d: %v\n", setting.ID, err)
-//				continue
-//			}
-//
-//			totalMap := make(map[string]float64)
-//			countMap := make(map[string]int)
-//
-//			for _, data := range monitoringData {
-//				cleanedValue := removeUnits(data.MonitoringValue)
-//
-//				value, err := strconv.ParseFloat(cleanedValue, 64)
-//				if err != nil {
-//					fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
-//					continue
-//				}
-//
-//				totalMap[data.MonitoringName] += value
-//				countMap[data.MonitoringName]++
-//			}
-//
-//			for monitoringName, total := range totalMap {
-//				count := countMap[monitoringName]
-//				average := total / float64(count)
-//
-//				harianData := entities.MonitoringDataHarian{
-//					MonitoringName:  monitoringName,
-//					MonitoringValue: fmt.Sprintf("%.2f", average),
-//					IDSetting:       uint(setting.ID),
-//					CreatedAt:       time.Now(),
-//					UpdatedAt:       time.Now(),
-//				}
-//
-//				_, err := monitoringDataRepo.SaveHarianData(entities.MonitoringData(harianData))
-//				if err != nil {
-//					fmt.Printf("Error saving harian data for %s (Setting ID %d): %v\n", monitoringName, setting.ID, err)
-//				}
-//			}
-//		}
-//
-//		fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
-//	}
 func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
 	fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
 
@@ -191,7 +141,6 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 
 	fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
 }
-
 func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseCase usecases.SettingUseCase) {
 	for {
 		settings, err := settingUseCase.GetAllCornJobs()
@@ -202,27 +151,34 @@ func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseC
 		}
 
 		for _, setting := range settings {
-			if setting.Scheduler != lastSchedulers[setting.ID] {
-				// Perbarui last scheduler
-				lastSchedulers[setting.ID] = setting.Scheduler
+			schedulerChanged := setting.Scheduler != lastSchedulers[setting.ID]
+			urlChanged := setting.HaosURL != lastHaosURL[setting.ID]
+			tokenChanged := setting.HaosToken != lastHaosToken[setting.ID]
 
-				// Hapus cron job lama
+			if schedulerChanged || urlChanged || tokenChanged {
+				// Simpan data terbaru
+				lastSchedulers[setting.ID] = setting.Scheduler
+				lastHaosURL[setting.ID] = setting.HaosURL
+				lastHaosToken[setting.ID] = setting.HaosToken
+
+				// Hapus cron job lama jika ada
 				if cronJobID, exists := cronJobIDs[setting.ID]; exists {
 					c.Remove(cronJobID)
 				}
 
-				// Buat cron job baru
+				// Tambahkan cron job baru dengan data terbaru
 				cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
+				currentSetting := setting // hindari closure bug
 				newCronJobID, err := c.AddFunc(cronExpression, func() {
-					runJob(useCase, entities.Setting(setting))
+					runJob(useCase, entities.Setting(currentSetting))
 				})
 				if err != nil {
 					fmt.Printf("Error adding cron job for setting ID %d: %v\n", setting.ID, err)
 					continue
 				}
 
-				// Simpan ID cron job baru
 				cronJobIDs[setting.ID] = newCronJobID
+				fmt.Printf("Updated job for setting ID %d (Scheduler: %ds, URL: %s)\n", setting.ID, setting.Scheduler, setting.HaosURL)
 			}
 		}
 
@@ -284,10 +240,11 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 			MonitoringValue: valueStr,
 			IDSetting:       uint(setting.ID), // Tambahkan SettingID ke request
 		}
-
-		_, err := useCase.SaveMonitoringData(request)
-		if err != nil {
-			fmt.Printf("Error saving monitoring data (%s) for setting ID %d: %v\n", key, setting.ID, err)
+		if request.MonitoringValue != "Unavailable" {
+			_, err := useCase.SaveMonitoringData(request)
+			if err != nil {
+				fmt.Printf("Error saving monitoring data (%s) for setting ID %d: %v\n", key, setting.ID, err)
+			}
 		}
 	}
 
