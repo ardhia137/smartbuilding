@@ -240,7 +240,7 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 			MonitoringValue: valueStr,
 			IDSetting:       uint(setting.ID), // Tambahkan SettingID ke request
 		}
-		if !strings.Contains(request.MonitoringValue, "Unavailable") {
+		if !strings.Contains(request.MonitoringValue, "unavailable") {
 			_, err := useCase.SaveMonitoringData(request)
 			if err != nil {
 				fmt.Printf("Error saving monitoring data (%s) for setting ID %d: %v\n", key, setting.ID, err)
