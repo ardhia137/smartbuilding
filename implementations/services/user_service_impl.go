@@ -25,7 +25,6 @@ func (s *userServiceImpl) GetAllUsers() ([]entities.UserResponse, error) {
 	if err != nil {
 		return nil, utils.ErrInternal
 	}
-
 	var userResponses []entities.UserResponse
 	for _, user := range users {
 		userResponses = append(userResponses, entities.UserResponse{
@@ -33,6 +32,7 @@ func (s *userServiceImpl) GetAllUsers() ([]entities.UserResponse, error) {
 			Username: user.Username,
 			Email:    user.Email,
 			Role:     user.Role,
+			Password: user.Password,
 		})
 	}
 	return userResponses, nil
@@ -44,7 +44,7 @@ func (s *userServiceImpl) GetUserByID(id uint) (entities.UserResponse, error) {
 		return entities.UserResponse{}, utils.ErrNotFound
 	}
 
-	return entities.UserResponse{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role}, nil
+	return entities.UserResponse{ID: user.ID, Username: user.Username, Email: user.Email, Role: user.Role, Password: user.Password}, nil
 }
 
 func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (entities.UserResponse, error) {
@@ -197,7 +197,7 @@ func (s *userServiceImpl) UpdateUser(id uint, request entities.CreateUserRequest
 	user.Username = request.Username
 	user.Email = request.Email
 
-	if request.Password != "" {
+	if request.Password != user.Password {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return entities.UserResponse{}, utils.ErrInternal
@@ -217,6 +217,7 @@ func (s *userServiceImpl) UpdateUser(id uint, request entities.CreateUserRequest
 		Username: updatedUser.Username,
 		Email:    updatedUser.Email,
 		Role:     updatedUser.Role,
+		Password: updatedUser.Password,
 	}, nil
 }
 
