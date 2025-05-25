@@ -112,5 +112,8 @@ func (c *SettingController) DeleteSetting(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Setting deleted successfully",
+	})
 }

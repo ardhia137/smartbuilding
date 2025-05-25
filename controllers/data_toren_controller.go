@@ -114,5 +114,8 @@ func (c *DataTorenController) DeleteDataToren(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "data toren deleted successfully",
+	})
 }

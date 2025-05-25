@@ -187,5 +187,8 @@ func (c *PengelolaGedungController) DeletePengelolaGedung(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Pengelola Gedung deleted successfully",
+	})
 }

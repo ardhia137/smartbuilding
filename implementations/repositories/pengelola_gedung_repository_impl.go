@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"smartbuilding/entities"
@@ -16,9 +17,24 @@ func NewPengelolaGedungRepository(db *gorm.DB) repositories.PengelolaGedungRepos
 }
 
 func (r *PengelolaGedungRepositoryImpl) Create(pengelolaGedung *entities.PengelolaGedung) (*entities.PengelolaGedung, error) {
+	var existing entities.PengelolaGedung
+	err := r.db.Where("setting_id = ? AND user_id = ?",
+		pengelolaGedung.SettingID,
+		pengelolaGedung.UserId).
+		First(&existing).Error
+
+	if err == nil {
+		return nil, fmt.Errorf("gedung sudah dikelola")
+	}
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
 	if err := r.db.Create(pengelolaGedung).Error; err != nil {
 		return nil, err
 	}
+
 	return pengelolaGedung, nil
 }
 
@@ -92,9 +108,27 @@ func (r *PengelolaGedungRepositoryImpl) FindByID(id int) (*entities.PengelolaGed
 }
 
 func (r *PengelolaGedungRepositoryImpl) Update(pengelolaGedung *entities.PengelolaGedung) (*entities.PengelolaGedung, error) {
+	var existing entities.PengelolaGedung
+	err := r.db.Where("setting_id = ? AND user_id = ?",
+		pengelolaGedung.SettingID,
+		pengelolaGedung.UserId).
+		First(&existing).Error
+
+	// Jika record sudah ada dan bukan record yang sama (ID berbeda)
+	if err == nil && existing.ID != pengelolaGedung.ID {
+		return nil, fmt.Errorf("Gedung sudah dikelola",
+			pengelolaGedung.SettingID,
+			pengelolaGedung.UserId)
+	}
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
 	if err := r.db.Save(pengelolaGedung).Error; err != nil {
 		return nil, err
 	}
+
 	return pengelolaGedung, nil
 }
 
