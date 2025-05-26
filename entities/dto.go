@@ -72,6 +72,7 @@ type GetAirDataResponse struct {
 	AirMasuk               string                     `json:"AirMasuk"`
 	DataPenggunaanHarian   map[string][]PenggunaanAir `json:"DataPenggunaanHarian"`
 	DataPenggunaanMingguan map[string][]PenggunaanAir `json:"DataPenggunaanMingguan"`
+	DataPenggunaanBulanan  map[string][]PenggunaanAir `json:"DataPenggunaanBulanan"`
 	DataPenggunaanTahunan  map[string][]PenggunaanAir `json:"DataPenggunaanTahunan"`
 	CreatedAt              time.Time                  `json:"CreatedAt"`
 	UpdatedAt              time.Time                  `json:"UpdatedAt"`
@@ -91,6 +92,8 @@ type GetListrikDataResponse struct {
 	DataBiayaListrikHarian        map[string][]BiayaListrik      `json:"DataBiayaListrikHarian"`
 	DataPenggunaanListrikMingguan map[string][]PenggunaanListrik `json:"DataPenggunaanListrikMingguan"`
 	DataBiayaListrikMingguan      map[string][]BiayaListrik      `json:"DataBiayaListrikMingguan"`
+	DataPenggunaanListrikBulanan  map[string][]PenggunaanListrik `json:"DataPenggunaanListrikBulanan"`
+	DataBiayaListrikBulanan       map[string][]BiayaListrik      `json:"DataBiayaListrikBulanan"`
 	DataPenggunaanListrikTahunan  map[string][]PenggunaanListrik `json:"DataPenggunaanListrikTahunan"`
 	DataBiayaListrikTahunan       map[string][]BiayaListrik      `json:"DataBiayaListrikTahunan"`
 	CreatedAt                     time.Time                      `json:"CreatedAt"`

@@ -74,6 +74,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 
 	dataPenggunaanHarian := make(map[string][]entities.PenggunaanAir)
 	dataPenggunaanMingguan := make(map[string]map[string]float64)
+	dataPenggunaanBulanan := make(map[string]map[string]float64)
 	dataPenggunaanTahunan := make(map[string]map[string]float64)
 	latestWaterFlowMasuk := make(map[string]float64)
 	latestCreatedAtMasuk := make(map[string]time.Time)
@@ -188,10 +189,17 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 			bulan := getBulanIndonesia(harian.CreatedAt.Month())
 
 			if harian.CreatedAt.Year() == year {
-				if dataPenggunaanTahunan[bulan] == nil {
-					dataPenggunaanTahunan[bulan] = make(map[string]float64)
+				if dataPenggunaanBulanan[bulan] == nil {
+					dataPenggunaanBulanan[bulan] = make(map[string]float64)
 				}
-				dataPenggunaanTahunan[bulan][pipa] += volume
+				dataPenggunaanBulanan[bulan][pipa] += volume
+				
+				// Process yearly data
+				tahun := strconv.Itoa(harian.CreatedAt.Year())
+				if dataPenggunaanTahunan[tahun] == nil {
+					dataPenggunaanTahunan[tahun] = make(map[string]float64)
+				}
+				dataPenggunaanTahunan[tahun][pipa] += volume
 			}
 		}
 	}
@@ -214,6 +222,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 		AirKeluar:              fmt.Sprintf("%.0f L", totalAirKeluar),
 		DataPenggunaanHarian:   dataPenggunaanHarian,
 		DataPenggunaanMingguan: make(map[string][]entities.PenggunaanAir),
+		DataPenggunaanBulanan:  make(map[string][]entities.PenggunaanAir),
 		DataPenggunaanTahunan:  make(map[string][]entities.PenggunaanAir),
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
@@ -223,8 +232,12 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 		response.DataPenggunaanMingguan[minggu] = convertMingguanTahunan(data)
 	}
 
-	for bulan, data := range dataPenggunaanTahunan {
-		response.DataPenggunaanTahunan[bulan] = convertMingguanTahunan(data)
+	for bulan, data := range dataPenggunaanBulanan {
+		response.DataPenggunaanBulanan[bulan] = convertMingguanTahunan(data)
+	}
+
+	for tahun, data := range dataPenggunaanTahunan {
+		response.DataPenggunaanTahunan[tahun] = convertMingguanTahunan(data)
 	}
 
 	return []entities.GetAirDataResponse{response}, nil
@@ -257,6 +270,9 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	dataPenggunaanMingguan := make(map[string]map[string]entities.PenggunaanListrik)
 	dataBiayaMingguan := make(map[string]map[string]entities.BiayaListrik)
+
+	dataPenggunaanBulanan := make(map[string]map[string]entities.PenggunaanListrik)
+	dataBiayaBulanan := make(map[string]map[string]entities.BiayaListrik)
 
 	dataPenggunaanTahunan := make(map[string]map[string]entities.PenggunaanListrik)
 	dataBiayaTahunan := make(map[string]map[string]entities.BiayaListrik)
@@ -430,32 +446,65 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			bulanHarian := getBulanIndonesia(harian.CreatedAt.Month())
 
 			if harian.CreatedAt.Year() == year {
-				if dataPenggunaanTahunan[bulanHarian] == nil {
-					dataPenggunaanTahunan[bulanHarian] = make(map[string]entities.PenggunaanListrik)
+				if dataPenggunaanBulanan[bulanHarian] == nil {
+					dataPenggunaanBulanan[bulanHarian] = make(map[string]entities.PenggunaanListrik)
 				}
-				if dataBiayaTahunan[bulanHarian] == nil {
-					dataBiayaTahunan[bulanHarian] = make(map[string]entities.BiayaListrik)
+				if dataBiayaBulanan[bulanHarian] == nil {
+					dataBiayaBulanan[bulanHarian] = make(map[string]entities.BiayaListrik)
 				}
 
-				if existing, ok := dataPenggunaanTahunan[bulanHarian][harian.MonitoringName]; ok {
+				if existing, ok := dataPenggunaanBulanan[bulanHarian][harian.MonitoringName]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
 					existingValue += kw
 					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
-					dataPenggunaanTahunan[bulanHarian][harian.MonitoringName] = existing
+					dataPenggunaanBulanan[bulanHarian][harian.MonitoringName] = existing
 				} else {
-					dataPenggunaanTahunan[bulanHarian][harian.MonitoringName] = entities.PenggunaanListrik{
+					dataPenggunaanBulanan[bulanHarian][harian.MonitoringName] = entities.PenggunaanListrik{
 						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
 						Value: fmt.Sprintf("%.2f Kwh", kwh),
 					}
 				}
 
-				if existing, ok := dataBiayaTahunan[bulanHarian][harian.MonitoringName]; ok {
+				if existing, ok := dataBiayaBulanan[bulanHarian][harian.MonitoringName]; ok {
 					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
 					existingBiaya += kwh * tarifListrik
 					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
-					dataBiayaTahunan[bulanHarian][harian.MonitoringName] = existing
+					dataBiayaBulanan[bulanHarian][harian.MonitoringName] = existing
 				} else {
-					dataBiayaTahunan[bulanHarian][harian.MonitoringName] = entities.BiayaListrik{
+					dataBiayaBulanan[bulanHarian][harian.MonitoringName] = entities.BiayaListrik{
+						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
+						Biaya: fmt.Sprintf("Rp. %.0f", kwh*tarifListrik),
+					}
+				}
+
+				// Process yearly data
+				tahun := strconv.Itoa(harian.CreatedAt.Year())
+				if dataPenggunaanTahunan[tahun] == nil {
+					dataPenggunaanTahunan[tahun] = make(map[string]entities.PenggunaanListrik)
+				}
+				if dataBiayaTahunan[tahun] == nil {
+					dataBiayaTahunan[tahun] = make(map[string]entities.BiayaListrik)
+				}
+
+				if existing, ok := dataPenggunaanTahunan[tahun][harian.MonitoringName]; ok {
+					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
+					existingValue += kw
+					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
+					dataPenggunaanTahunan[tahun][harian.MonitoringName] = existing
+				} else {
+					dataPenggunaanTahunan[tahun][harian.MonitoringName] = entities.PenggunaanListrik{
+						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
+						Value: fmt.Sprintf("%.2f Kwh", kwh),
+					}
+				}
+
+				if existing, ok := dataBiayaTahunan[tahun][harian.MonitoringName]; ok {
+					existingBiaya, _ := strconv.ParseFloat(strings.TrimPrefix(existing.Biaya, "Rp. "), 64)
+					existingBiaya += kwh * tarifListrik
+					existing.Biaya = fmt.Sprintf("Rp. %.0f", existingBiaya)
+					dataBiayaTahunan[tahun][harian.MonitoringName] = existing
+				} else {
+					dataBiayaTahunan[tahun][harian.MonitoringName] = entities.BiayaListrik{
 						Nama:  strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " "),
 						Biaya: fmt.Sprintf("Rp. %.0f", kwh*tarifListrik),
 					}
@@ -489,6 +538,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		DataBiayaListrikHarian:        make(map[string][]entities.BiayaListrik),
 		DataPenggunaanListrikMingguan: make(map[string][]entities.PenggunaanListrik),
 		DataBiayaListrikMingguan:      make(map[string][]entities.BiayaListrik),
+		DataPenggunaanListrikBulanan:  make(map[string][]entities.PenggunaanListrik),
+		DataBiayaListrikBulanan:       make(map[string][]entities.BiayaListrik),
 		DataPenggunaanListrikTahunan:  make(map[string][]entities.PenggunaanListrik),
 		DataBiayaListrikTahunan:       make(map[string][]entities.BiayaListrik),
 		CreatedAt:                     createdAt,
@@ -509,11 +560,18 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		response.DataBiayaListrikMingguan[minggu] = convertBiayaToSlice(data)
 	}
 
-	for bulan, data := range dataPenggunaanTahunan {
-		response.DataPenggunaanListrikTahunan[bulan] = convertToSlice(data)
+	for bulan, data := range dataPenggunaanBulanan {
+		response.DataPenggunaanListrikBulanan[bulan] = convertToSlice(data)
 	}
-	for bulan, data := range dataBiayaTahunan {
-		response.DataBiayaListrikTahunan[bulan] = convertBiayaToSlice(data)
+	for bulan, data := range dataBiayaBulanan {
+		response.DataBiayaListrikBulanan[bulan] = convertBiayaToSlice(data)
+	}
+
+	for tahun, data := range dataPenggunaanTahunan {
+		response.DataPenggunaanListrikTahunan[tahun] = convertToSlice(data)
+	}
+	for tahun, data := range dataBiayaTahunan {
+		response.DataBiayaListrikTahunan[tahun] = convertBiayaToSlice(data)
 	}
 
 	return response, nil
