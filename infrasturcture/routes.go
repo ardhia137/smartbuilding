@@ -19,6 +19,7 @@ func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserCont
 		userRoutes.DELETE("/:id", userController.DeleteUser)
 		userRoutes.GET("/me", userController.GetMe)
 	}
+	apiGroup.GET("/me", userController.GetMe)
 }
 
 func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthController) {
@@ -31,6 +32,7 @@ func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthCont
 	}
 	apiGroup.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	apiGroup.PUT("/change-password", authController.ChangePassword)
+
 }
 
 func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {

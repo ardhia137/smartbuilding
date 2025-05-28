@@ -62,12 +62,17 @@ func main() {
 	log.Println("Setting up routes...")
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Ubah sesuai dengan asal frontend
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		AllowCredentials: false, // Jika butuh kirim cookies atau token
+		AllowCredentials: false,
 		MaxAge:           12 * time.Hour,
 	}))
+
+	// Tambahkan ini supaya OPTIONS tidak 404
+	router.OPTIONS("/*path", func(c *gin.Context) {
+		c.AbortWithStatus(204)
+	})
 	infrastructure.RegisterUserRoutes(router, userController)
 	infrastructure.RegisterAuthRoutes(router, authController)
 	infrastructure.RegisterMonitoringDataRoutes(router, monitoringDataController)
