@@ -164,7 +164,6 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 			pipa := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
 			volume, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " L"), 64)
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
-			fmt.Println("DEBUG:", harian.CreatedAt, ">", startOfWeek, "&&", harian.CreatedAt, "<", endOfWeek)
 
 			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
 				dataPenggunaanHarian[hari] = append(dataPenggunaanHarian[hari], entities.PenggunaanAir{
@@ -291,7 +290,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	for i, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
 		var _ float64
-		fmt.Println(data.MonitoringName + "=" + fmt.Sprint(arus))
+
 		// Tambahkan ke total arus untuk perhitungan rata-rata
 		totalArus += arus
 		jumlahData++
@@ -320,9 +319,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	}
 
 	// Hitung selisih waktu dalam detik
-	seconds := int(updatedAt.Sub(createdAt).Seconds())
 
-	fmt.Println(seconds)
 	// Hitung daya (kW) dan energi (kWh) berdasarkan rata-rata arus
 	if jumlahData > 0 {
 		rataRataArus := totalArus / float64(jumlahData)
@@ -330,7 +327,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		if currentHour == 0 {
 			currentHour = 1 // Hindari pembagian dengan 0
 		}
-		fmt.Printf("Rata-rata arus: %.2f, Jam sekarang: %.0f\n", rataRataArus, currentHour)
 
 		// Hitung daya dalam kW (tanpa mengalikan dengan jam)
 		var dayaKW float64
@@ -346,7 +342,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		// Set totalWatt ke nilai daya (kW)
 		totalWatt = energiKWh
 
-		fmt.Printf("Daya: %.3f kW, Energi: %.2f kWh (selama %.0f jam)\n", dayaKW, energiKWh, currentHour)
 	}
 
 	// Hindari pembagian dengan 0
@@ -364,7 +359,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		if jumlahData > 0 {
 			// Hitung rata-rata arus untuk monitoring name ini
 			rataRataArus := totalArus / float64(jumlahData)
-			fmt.Printf("Monitoring: %s, Rata-rata arus: %.2f, Jumlah data: %d\n", key, rataRataArus, jumlahData)
 
 			// Hitung daya dalam kW berdasarkan rata-rata arus
 			var dayaKW float64
@@ -394,10 +388,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		nama := dayaItem.Nama
 		kwhStr := strings.TrimSuffix(dayaItem.Value, " kWh")
 		kwh, _ := strconv.ParseFloat(kwhStr, 64)
-		
+
 		// Hitung biaya
 		biaya := kwh * tarifListrik
-		
+
 		// Tambahkan ke totalBiaya
 		totalBiaya = append(totalBiaya, entities.BiayaListrik{
 			Nama:  nama,

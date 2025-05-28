@@ -102,6 +102,7 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 		"data":    user,
 	})
 }
+
 // @Summary Membuat pengguna baru
 // @Description Membuat pengguna baru berdasarkan data yang diberikan
 // @Tags users
@@ -245,16 +246,6 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 	})
 }
 
-// @Summary Mendapatkan data pengguna yang sedang login
-// @Description Mendapatkan data pengguna berdasarkan token yang digunakan
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan data pengguna"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 500 {object} map[string]interface{} "Internal Server Error"
-// @Router /users/me [get]
 func (c *UserController) GetMe(ctx *gin.Context) {
 	userIDInterface, exists := ctx.Get("user_id")
 	if !exists {

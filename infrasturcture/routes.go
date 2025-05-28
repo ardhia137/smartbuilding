@@ -9,22 +9,24 @@ import (
 func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserController) {
 	apiGroup := router.Group("/api")
 
-	userRoutes := apiGroup.Group("/users")
-	userRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	// Routes only for admin and manajement
+	adminRoutes := apiGroup.Group("/users")
+	adminRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
 	{
-		userRoutes.GET("", userController.GetAllUsers)
-		userRoutes.POST("", userController.CreateUser)
-		userRoutes.GET("/:id", userController.GetUserByID)
-		userRoutes.PUT("/:id", userController.UpdateUser)
-		userRoutes.DELETE("/:id", userController.DeleteUser)
-
+		adminRoutes.GET("", userController.GetAllUsers)
+		adminRoutes.POST("", userController.CreateUser)
+		adminRoutes.GET("/:id", userController.GetUserByID)
+		adminRoutes.PUT("/:id", userController.UpdateUser)
+		adminRoutes.DELETE("/:id", userController.DeleteUser)
 	}
-	userRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
+
+	// Routes for any authenticated user (e.g., pengelola, admin, etc.)
+	userSelfRoutes := apiGroup.Group("/users")
+	userSelfRoutes.Use(utils.UserIDMiddleware()) // No RoleMiddleware, so any logged-in user can access
 	{
-		userRoutes.GET("/me", userController.GetMe)
+		userSelfRoutes.GET("/me", userController.GetMe)
 	}
 }
-
 func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthController) {
 	apiGroup := router.Group("/api")
 	authRoutes := apiGroup.Group("/auth")
