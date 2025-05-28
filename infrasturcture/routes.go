@@ -17,9 +17,12 @@ func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserCont
 		userRoutes.GET("/:id", userController.GetUserByID)
 		userRoutes.PUT("/:id", userController.UpdateUser)
 		userRoutes.DELETE("/:id", userController.DeleteUser)
+
+	}
+	userRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
+	{
 		userRoutes.GET("/me", userController.GetMe)
 	}
-	apiGroup.GET("/me", userController.GetMe)
 }
 
 func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthController) {
