@@ -17,6 +17,16 @@ func NewMonitoringDataController(useCase usecases.MonitoringDataUseCase, pengelo
 	return &MonitoringDataController{useCase, pengelolauc}
 }
 
+// @Summary Menyimpan data monitoring
+// @Description Menyimpan data monitoring baru
+// @Tags monitoring
+// @Accept json
+// @Produce json
+// @Param data body entities.CreateMonitoringDataRequest true "Data monitoring yang akan disimpan"
+// @Success 201 {object} entities.MonitoringDataResponse "Data monitoring berhasil disimpan"
+// @Failure 400 {object} map[string]interface{} "Invalid input"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /monitoring-data [post]
 func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
 	var requestData entities.CreateMonitoringDataRequest
 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
@@ -32,6 +42,18 @@ func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, response)
 }
+// @Summary Mendapatkan data monitoring air
+// @Description Mendapatkan data monitoring air berdasarkan ID setting
+// @Tags monitoring
+// @Accept json
+// @Produce json
+// @Param id path int true "Setting ID"
+// @Security ApiKeyAuth
+// @Success 200 {array} entities.GetAirDataResponse "Data monitoring air berhasil diambil"
+// @Failure 400 {object} map[string]interface{} "Invalid ID"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /monitoring-data/air/{id} [get]
 func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -79,6 +101,18 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
+// @Summary Mendapatkan data monitoring listrik
+// @Description Mendapatkan data monitoring listrik berdasarkan ID setting
+// @Tags monitoring
+// @Accept json
+// @Produce json
+// @Param id path int true "Setting ID"
+// @Security ApiKeyAuth
+// @Success 200 {object} entities.GetListrikDataResponse "Data monitoring listrik berhasil diambil"
+// @Failure 400 {object} map[string]interface{} "Invalid ID"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /monitoring-data/listrik/{id} [get]
 func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)

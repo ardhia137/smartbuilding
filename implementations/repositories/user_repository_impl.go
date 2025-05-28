@@ -18,10 +18,24 @@ func NewUserRepository(db *gorm.DB) repositories.UserRepository {
 	return &userRepositoryImpl{db}
 }
 
-func (r *userRepositoryImpl) FindAll() ([]entities.User, error) {
+func (r *userRepositoryImpl) FindAll(role string, user_id uint) ([]entities.User, error) {
 	var users []entities.User
-	err := r.db.Find(&users).Error
-	return users, err
+	if role == "admin" {
+		err := r.db.Find(&users).Error
+		return users, err
+	} else {
+		subQuery := r.db.
+			Table("pengelola_gedung").
+			Select("setting_id").
+			Where("user_id = ?", user_id)
+
+		err := r.db.
+			Table("user").
+			Joins("JOIN pengelola_gedung pg ON pg.user_id = user.id").
+			Where("pg.setting_id IN (?)", subQuery).
+			Find(&users).Error
+		return users, err
+	}
 }
 
 func (r *userRepositoryImpl) FindByID(id uint) (entities.User, error) {

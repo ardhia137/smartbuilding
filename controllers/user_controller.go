@@ -17,8 +17,41 @@ func NewUserController(userUseCase usecases.UserUseCase) *UserController {
 	return &UserController{userUseCase: userUseCase}
 }
 
+// @Summary Mendapatkan semua pengguna
+// @Description Mendapatkan daftar semua pengguna berdasarkan role dan user ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan daftar pengguna"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /users [get]
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
-	users, err := c.userUseCase.GetAllUsers()
+	roleInterface, exists := ctx.Get("role")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Role tidak ditemukan"})
+		return
+	}
+
+	role, ok := roleInterface.(string)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid role type"})
+		return
+	}
+
+	userIDInterface, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User ID tidak ditemukan"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uint)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id type"})
+		return
+	}
+	users, err := c.userUseCase.GetAllUsers(role, userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
@@ -34,6 +67,17 @@ func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	})
 }
 
+// @Summary Mendapatkan pengguna berdasarkan ID
+// @Description Mendapatkan detail pengguna berdasarkan ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan detail pengguna"
+// @Failure 400 {object} map[string]interface{} "Invalid ID format"
+// @Failure 404 {object} map[string]interface{} "User not found"
+// @Router /users/{id} [get]
 func (c *UserController) GetUserByID(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -58,6 +102,17 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 		"data":    user,
 	})
 }
+// @Summary Membuat pengguna baru
+// @Description Membuat pengguna baru berdasarkan data yang diberikan
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body entities.CreateUserRequest true "Data pengguna baru"
+// @Security ApiKeyAuth
+// @Success 201 {object} map[string]interface{} "Berhasil membuat pengguna baru"
+// @Failure 400 {object} map[string]interface{} "Invalid input data"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /users [post]
 func (c *UserController) CreateUser(ctx *gin.Context) {
 	var request entities.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -107,6 +162,18 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 	})
 }
 
+// @Summary Memperbarui pengguna
+// @Description Memperbarui data pengguna berdasarkan ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param user body entities.CreateUserRequest true "Data pengguna yang diperbarui"
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil memperbarui pengguna"
+// @Failure 400 {object} map[string]interface{} "Invalid input data"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /users/{id} [put]
 func (c *UserController) UpdateUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -141,6 +208,17 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 	})
 }
 
+// @Summary Menghapus pengguna
+// @Description Menghapus pengguna berdasarkan ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil menghapus pengguna"
+// @Failure 400 {object} map[string]interface{} "Invalid ID format"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /users/{id} [delete]
 func (c *UserController) DeleteUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -167,6 +245,16 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 	})
 }
 
+// @Summary Mendapatkan data pengguna yang sedang login
+// @Description Mendapatkan data pengguna berdasarkan token yang digunakan
+// @Tags users
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan data pengguna"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal Server Error"
+// @Router /users/me [get]
 func (c *UserController) GetMe(ctx *gin.Context) {
 	userIDInterface, exists := ctx.Get("user_id")
 	if !exists {

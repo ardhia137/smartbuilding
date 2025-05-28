@@ -193,7 +193,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 					dataPenggunaanBulanan[bulan] = make(map[string]float64)
 				}
 				dataPenggunaanBulanan[bulan][pipa] += volume
-				
+
 				// Process yearly data
 				tahun := strconv.Itoa(harian.CreatedAt.Year())
 				if dataPenggunaanTahunan[tahun] == nil {
@@ -264,6 +264,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	var tarifListrik = float64(setting.HargaListrik)
 	var createdAt, updatedAt time.Time
 	var totalWatt float64
+	var totalArus float64
+	var jumlahData int
 
 	dataPenggunaanHarian := make(map[string]map[string]entities.PenggunaanListrik)
 	dataBiayaHarian := make(map[string]map[string]entities.BiayaListrik)
@@ -279,19 +281,31 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	var totalDaya []entities.TotalDayaListrik
 	totalBiaya := []entities.BiayaListrik{} // Map untuk menyimpan total biaya
-
-	totalDayaMap := make(map[string]float64)    // Untuk menyimpan sementara sebelum konversi ke slice
-	totalBiayaMap := make(map[string]float64)   // Untuk menyimpan sementara sebelum konversi ke slice
-	totalJumlahData := make(map[string]float64) // Untuk menyimpan sementara sebelum konversi ke slice
+	now := time.Now()
+	//hour := now.Hour()
+	//totalDayaMap := make(map[string]float64)    // Untuk menyimpan sementara sebelum konversi ke slice
+	//totalBiayaMap := make(map[string]float64)    // Untuk menyimpan sementara sebelum konversi ke slice
+	//totalJumlahData := make(map[string]float64)  // Untuk menyimpan sementara sebelum konversi ke slice
+	totalArusPerName := make(map[string]float64) // Untuk menyimpan total arus per monitoring name
+	jumlahDataPerName := make(map[string]int)    // Untuk menyimpan jumlah data per monitoring name
 	for i, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
-		var kw float64
+		var _ float64
+		fmt.Println(data.MonitoringName + "=" + fmt.Sprint(arus))
+		// Tambahkan ke total arus untuk perhitungan rata-rata
+		totalArus += arus
+		jumlahData++
 
+		// Tambahkan ke total arus per monitoring name
+		if data.MonitoringName != "" {
+			totalArusPerName[data.MonitoringName] += arus
+			jumlahDataPerName[data.MonitoringName]++
+		}
 		// Hitung daya berdasarkan jenis listrik
 		if jenisListrik == "1_phase" {
-			kw = 220 * arus * 0.8 / 1000
+			_ = 220 * arus * 0.8 / 1000
 		} else if jenisListrik == "3_phase" {
-			kw = 1.732 * 380 * arus * 0.8 / 1000
+			_ = 1.732 * 380 * arus * 0.8 / 1000
 		}
 
 		// Tentukan createdAt (paling awal) dan updatedAt (paling akhir)
@@ -302,53 +316,95 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			updatedAt = data.UpdatedAt
 		}
 
-		// Hitung total daya & biaya
-		if data.MonitoringName != "" {
-			totalDayaMap[data.MonitoringName] += kw
-		}
-
-		totalWatt += kw
+		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	// Hitung selisih waktu dalam detik
 	seconds := int(updatedAt.Sub(createdAt).Seconds())
 
 	fmt.Println(seconds)
+	// Hitung daya (kW) dan energi (kWh) berdasarkan rata-rata arus
+	if jumlahData > 0 {
+		rataRataArus := totalArus / float64(jumlahData)
+		currentHour := float64(now.Hour())
+		if currentHour == 0 {
+			currentHour = 1 // Hindari pembagian dengan 0
+		}
+		fmt.Printf("Rata-rata arus: %.2f, Jam sekarang: %.0f\n", rataRataArus, currentHour)
+
+		// Hitung daya dalam kW (tanpa mengalikan dengan jam)
+		var dayaKW float64
+		if jenisListrik == "1_phase" {
+			dayaKW = 220 * rataRataArus * 0.8 / 1000
+		} else if jenisListrik == "3_phase" {
+			dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
+		}
+
+		// Hitung energi dalam kWh (daya dikali jam)
+		energiKWh := dayaKW * currentHour
+
+		// Set totalWatt ke nilai daya (kW)
+		totalWatt = energiKWh
+
+		fmt.Printf("Daya: %.3f kW, Energi: %.2f kWh (selama %.0f jam)\n", dayaKW, energiKWh, currentHour)
+	}
+
 	// Hindari pembagian dengan 0
-	if seconds > 0 {
-		for _, data := range monitoringData {
-			arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
-			var kw, kwh float64
+	// Biaya akan dihitung berdasarkan energi (kWh) per monitoring name
 
+	// Hitung daya berdasarkan rata-rata arus per monitoring name
+	totalWatt = 0 // Reset totalWatt untuk menghitung ulang
+	currentHour := float64(now.Hour())
+	if currentHour == 0 {
+		currentHour = 1 // Hindari pembagian dengan 0
+	}
+
+	for key, totalArus := range totalArusPerName {
+		jumlahData := jumlahDataPerName[key]
+		if jumlahData > 0 {
+			// Hitung rata-rata arus untuk monitoring name ini
+			rataRataArus := totalArus / float64(jumlahData)
+			fmt.Printf("Monitoring: %s, Rata-rata arus: %.2f, Jumlah data: %d\n", key, rataRataArus, jumlahData)
+
+			// Hitung daya dalam kW berdasarkan rata-rata arus
+			var dayaKW float64
 			if jenisListrik == "1_phase" {
-				kw = 220 * arus * 0.8 / 1000
+				dayaKW = 220 * rataRataArus * 0.8 / 1000
 			} else if jenisListrik == "3_phase" {
-				kw = 1.732 * 380 * arus * 0.8 / 1000
+				dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
 			}
 
-			kwh = kw * (schadule / float64(seconds))
-			if data.MonitoringName != "" {
-				totalBiayaMap[data.MonitoringName] += kwh * float64(tarifListrik)
-				totalJumlahData[data.MonitoringName]++
-			}
+			// Hitung energi dalam kWh (daya dikali jam)
+			energiKWh := dayaKW * currentHour
+
+			// Tambahkan ke totalWatt
+			totalWatt += energiKWh
+
+			// Tambahkan ke totalDaya
+			totalDaya = append(totalDaya, entities.TotalDayaListrik{
+				Nama:  strings.ReplaceAll(strings.TrimPrefix(key, "monitoring_listrik_arus_"), "_", " "),
+				Value: fmt.Sprintf("%.2f kWh", energiKWh),
+			})
 		}
 	}
 
-	// Konversi map ke slice
-	for key, value := range totalDayaMap {
-		totalDaya = append(totalDaya, entities.TotalDayaListrik{
-			Nama:  strings.ReplaceAll(strings.TrimPrefix(key, "monitoring_listrik_arus_"), "_", " "),
-			Value: fmt.Sprintf("%.2f kW", value),
-		})
-	}
-	for key, value := range totalBiayaMap {
+	// Hitung biaya berdasarkan energi (kWh) yang telah dihitung sebelumnya
+	for _, dayaItem := range totalDaya {
+		// Ekstrak nama dan nilai kWh
+		nama := dayaItem.Nama
+		kwhStr := strings.TrimSuffix(dayaItem.Value, " kWh")
+		kwh, _ := strconv.ParseFloat(kwhStr, 64)
+		
+		// Hitung biaya
+		biaya := kwh * tarifListrik
+		
+		// Tambahkan ke totalBiaya
 		totalBiaya = append(totalBiaya, entities.BiayaListrik{
-			Nama:  strings.ReplaceAll(strings.TrimPrefix(key, "monitoring_listrik_arus_"), "_", " "),
-			Biaya: fmt.Sprintf("Rp.%.2f", value),
+			Nama:  nama,
+			Biaya: fmt.Sprintf("Rp. %.0f", biaya),
 		})
 	}
 
-	now := time.Now()
 	year, month, _ := now.Date()
 	startOfWeek := getStartOfWeek(now)
 	endOfWeek := getEndOfWeek(startOfWeek)
@@ -357,15 +413,23 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		if strings.Contains(harian.MonitoringName, "arus_listrik") {
 			arus, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " A"), 64)
 			var kw, kwh float64
+
+			// Hitung daya (kW) dan energi (kWh) berdasarkan arus
 			if jenisListrik == "1_phase" {
+				// Hitung rata-rata arus per hari
 				jumlahSampel := 86400 / schadule
 				Rarus := arus / jumlahSampel
+				// Hitung daya dalam kW
 				kw = 220 * Rarus * 0.8 / 1000
-				kwh = kw / 24
+				// Hitung energi dalam kWh (daya dikali 24 jam)
+				kwh = kw * 24
 			} else if jenisListrik == "3_phase" {
+				// Hitung rata-rata arus per hari
 				jumlahSampel := 86400 / schadule
 				Rarus := arus / jumlahSampel
+				// Hitung daya dalam kW
 				kw = 1.732 * 380 * Rarus * 0.8 / 1000
+				// Hitung energi dalam kWh (daya dikali 24 jam)
 				kwh = kw * 24
 			}
 
@@ -381,7 +445,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 				if existing, ok := dataPenggunaanHarian[hari][harian.MonitoringName]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
-					existingValue += kw
+					existingValue += kwh
 					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanHarian[hari][harian.MonitoringName] = existing
 				} else {
@@ -420,7 +484,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 				if existing, ok := dataPenggunaanMingguan[mingguanKey][harian.MonitoringName]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
-					existingValue += kw
+					// Akumulasikan energi dalam kWh
+					existingValue += kwh
 					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanMingguan[mingguanKey][harian.MonitoringName] = existing
 				} else {
@@ -455,7 +520,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 				if existing, ok := dataPenggunaanBulanan[bulanHarian][harian.MonitoringName]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
-					existingValue += kw
+					// Akumulasikan energi dalam kWh
+					existingValue += kwh
 					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanBulanan[bulanHarian][harian.MonitoringName] = existing
 				} else {
@@ -488,7 +554,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 				if existing, ok := dataPenggunaanTahunan[tahun][harian.MonitoringName]; ok {
 					existingValue, _ := strconv.ParseFloat(strings.TrimSuffix(existing.Value, " Kwh"), 64)
-					existingValue += kw
+					// Akumulasikan energi dalam kWh
+					existingValue += kwh
 					existing.Value = fmt.Sprintf("%.2f Kwh", existingValue)
 					dataPenggunaanTahunan[tahun][harian.MonitoringName] = existing
 				} else {
@@ -531,7 +598,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	response := entities.GetListrikDataResponse{
 		NamaGedung:                    namaGedung,
-		TotalWatt:                     fmt.Sprintf("%.2f kW", totalWatt),
+		TotalWatt:                     fmt.Sprintf("%.2f kWh", totalWatt),
 		TotalDayaListrik:              totalDaya,
 		BiayaPemakaian:                totalBiaya,
 		DataPenggunaanListrikHarian:   make(map[string][]entities.PenggunaanListrik),

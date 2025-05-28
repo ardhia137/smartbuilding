@@ -20,8 +20,8 @@ func NewUserService(userRepo repositories.UserRepository, pengelolaGedung reposi
 	return &userServiceImpl{userRepo, pengelolaGedung}
 }
 
-func (s *userServiceImpl) GetAllUsers() ([]entities.UserResponse, error) {
-	users, err := s.userRepository.FindAll()
+func (s *userServiceImpl) GetAllUsers(role string, user_id uint) ([]entities.UserResponse, error) {
+	users, err := s.userRepository.FindAll(role, user_id)
 	if err != nil {
 		return nil, utils.ErrInternal
 	}

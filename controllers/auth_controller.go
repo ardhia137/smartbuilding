@@ -16,6 +16,16 @@ type AuthController struct {
 func NewAuthController(authUseCase usecases.AuthUseCase) *AuthController {
 	return &AuthController{authUseCase: authUseCase}
 }
+// @Summary Login pengguna
+// @Description Melakukan autentikasi pengguna dengan email dan password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param credentials body entities.LoginRequest true "Kredensial login"
+// @Success 200 {object} map[string]interface{} "Login berhasil"
+// @Failure 400 {object} map[string]interface{} "Invalid input data"
+// @Failure 401 {object} map[string]interface{} "Gagal login"
+// @Router /auth/login [post]
 func (c *AuthController) Login(ctx *gin.Context) {
 	var request entities.LoginRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -46,6 +56,16 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		"data":    response,
 	})
 }
+// @Summary Validasi token
+// @Description Memvalidasi token JWT
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Token valid"
+// @Failure 400 {object} map[string]interface{} "Token diperlukan"
+// @Failure 401 {object} map[string]interface{} "Token tidak valid atau kedaluwarsa"
+// @Router /auth/validate [get]
 func (c *AuthController) ValidateToken(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
@@ -75,6 +95,16 @@ func (c *AuthController) ValidateToken(ctx *gin.Context) {
 	})
 }
 
+// @Summary Memperbaharui token
+// @Description Memperbaharui token JWT yang akan kedaluwarsa
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Token berhasil diperbaharui"
+// @Failure 400 {object} map[string]interface{} "Token diperlukan"
+// @Failure 401 {object} map[string]interface{} "Gagal memperbaharui token"
+// @Router /auth/refresh [post]
 func (c *AuthController) RefreshToken(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
@@ -102,6 +132,16 @@ func (c *AuthController) RefreshToken(ctx *gin.Context) {
 	})
 }
 
+// @Summary Logout pengguna
+// @Description Menghapus token JWT dari sistem
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Berhasil logout"
+// @Failure 400 {object} map[string]interface{} "Token diperlukan"
+// @Failure 500 {object} map[string]interface{} "Gagal logout"
+// @Router /auth/logout [post]
 func (c *AuthController) Logout(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
@@ -127,6 +167,17 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 		"message": "User logged out successfully",
 	})
 }
+// @Summary Mengubah password
+// @Description Mengubah password pengguna yang sedang login
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param credentials body entities.ChangePasswordRequest true "Data password lama dan baru"
+// @Security ApiKeyAuth
+// @Success 200 {object} map[string]interface{} "Password berhasil diubah"
+// @Failure 400 {object} map[string]interface{} "Token diperlukan atau request tidak valid"
+// @Failure 401 {object} map[string]interface{} "Gagal mengubah password"
+// @Router /auth/change-password [post]
 func (c *AuthController) ChangePassword(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 
