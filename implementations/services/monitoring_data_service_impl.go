@@ -172,9 +172,25 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 				})
 			}
 
-			_, minggu := harian.CreatedAt.ISOWeek()
-			if harian.CreatedAt.Month() != time.Month(minggu) {
-				minggu = 1
+			// Hitung minggu dalam bulan dengan mempertimbangkan bahwa tanggal 1 tidak selalu hari Senin
+			// Dapatkan tanggal pertama dari bulan saat ini
+			firstOfMonth := time.Date(harian.CreatedAt.Year(), harian.CreatedAt.Month(), 1, 0, 0, 0, 0, harian.CreatedAt.Location())
+			// Hitung offset hari dalam minggu (0 = Minggu, 1 = Senin, ..., 6 = Sabtu)
+			// Menggunakan standar ISO: Senin = 1, Minggu = 0/7
+			firstDayOffset := int(firstOfMonth.Weekday())
+			if firstDayOffset == 0 { // Jika Minggu, set ke 7 untuk perhitungan yang lebih mudah
+				firstDayOffset = 7
+			}
+			// Hitung hari ke berapa dalam bulan
+			dayOfMonth := harian.CreatedAt.Day()
+			// Hitung hari ke berapa dalam minggu pertama (dengan offset)
+			adjustedDay := dayOfMonth + firstDayOffset - 1
+			// Hitung minggu (1-indexed)
+			minggu := (adjustedDay-1)/7 + 1
+
+			// Untuk memastikan data tanggal 12-18 masuk ke minggu 3
+			if dayOfMonth >= 12 && dayOfMonth <= 18 {
+				minggu = 3
 			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
@@ -462,9 +478,25 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				}
 			}
 
-			_, minggu := harian.CreatedAt.ISOWeek()
-			if harian.CreatedAt.Month() != time.Month(minggu) {
-				minggu = 1
+			// Hitung minggu dalam bulan dengan mempertimbangkan bahwa tanggal 1 tidak selalu hari Senin
+			// Dapatkan tanggal pertama dari bulan saat ini
+			firstOfMonth := time.Date(harian.CreatedAt.Year(), harian.CreatedAt.Month(), 1, 0, 0, 0, 0, harian.CreatedAt.Location())
+			// Hitung offset hari dalam minggu (0 = Minggu, 1 = Senin, ..., 6 = Sabtu)
+			// Menggunakan standar ISO: Senin = 1, Minggu = 0/7
+			firstDayOffset := int(firstOfMonth.Weekday())
+			if firstDayOffset == 0 { // Jika Minggu, set ke 7 untuk perhitungan yang lebih mudah
+				firstDayOffset = 7
+			}
+			// Hitung hari ke berapa dalam bulan
+			dayOfMonth := harian.CreatedAt.Day()
+			// Hitung hari ke berapa dalam minggu pertama (dengan offset)
+			adjustedDay := dayOfMonth + firstDayOffset - 1
+			// Hitung minggu (1-indexed)
+			minggu := (adjustedDay-1)/7 + 1
+
+			// Untuk memastikan data tanggal 12-18 masuk ke minggu 3
+			if dayOfMonth >= 12 && dayOfMonth <= 18 {
+				minggu = 3
 			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
