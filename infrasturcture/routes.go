@@ -9,7 +9,6 @@ import (
 func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserController) {
 	apiGroup := router.Group("/api")
 
-	// Routes only for admin and manajement
 	adminRoutes := apiGroup.Group("/users")
 	adminRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
 	{
@@ -20,9 +19,8 @@ func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserCont
 		adminRoutes.DELETE("/:id", userController.DeleteUser)
 	}
 
-	// Routes for any authenticated user (e.g., pengelola, admin, etc.)
 	userSelfRoutes := apiGroup.Group("/users")
-	userSelfRoutes.Use(utils.UserIDMiddleware()) // No RoleMiddleware, so any logged-in user can access
+	userSelfRoutes.Use(utils.UserIDMiddleware())
 	{
 		userSelfRoutes.GET("/me", userController.GetMe)
 	}
@@ -63,20 +61,21 @@ func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.Se
 	}
 }
 
-func RegisterDataTorenRoutes(router *gin.Engine, dataTorenController *controllers.DataTorenController) {
-	apiGroup := router.Group("/api")
-	dataTorenRoutes := apiGroup.Group("/data_toren")
-	dataTorenRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
-	{
-		dataTorenRoutes.GET("", dataTorenController.GetAllDataToren)
-		dataTorenRoutes.POST("", dataTorenController.CreateDataToren)
-		dataTorenRoutes.GET("/:id", dataTorenController.GetDataTorenByID)
-		dataTorenRoutes.GET("/setting/:id", dataTorenController.GetDataTorenBySettingID)
-		dataTorenRoutes.PUT("/:id", dataTorenController.UpdateDataToren)
-		dataTorenRoutes.DELETE("/:id", dataTorenController.DeleteDataToren)
-
-	}
-}
+//
+//func RegisterDataTorenRoutes(router *gin.Engine, dataTorenController *controllers.DataTorenController) {
+//	apiGroup := router.Group("/api")
+//	dataTorenRoutes := apiGroup.Group("/data_toren")
+//	dataTorenRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
+//	{
+//		dataTorenRoutes.GET("", dataTorenController.GetAllDataToren)
+//		dataTorenRoutes.POST("", dataTorenController.CreateDataToren)
+//		dataTorenRoutes.GET("/:id", dataTorenController.GetDataTorenByID)
+//		dataTorenRoutes.GET("/setting/:id", dataTorenController.GetDataTorenBySettingID)
+//		dataTorenRoutes.PUT("/:id", dataTorenController.UpdateDataToren)
+//		dataTorenRoutes.DELETE("/:id", dataTorenController.DeleteDataToren)
+//
+//	}
+//}
 
 func RegisterPengelolaGedungRoutes(router *gin.Engine, pengelolaGedungController *controllers.PengelolaGedungController) {
 	apiGroup := router.Group("/api")

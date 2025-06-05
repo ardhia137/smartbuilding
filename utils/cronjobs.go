@@ -11,17 +11,24 @@ import (
 	"smartbuilding/usecases"
 	"strconv"
 	"strings"
+	"sync"
 
 	//"strconv"
 	"time"
 )
 
+type MonitoringStatus struct {
+	MonitoringAir     string `json:"monitoring air"`
+	MonitoringListrik string `json:"monitoring listrik"`
+}
+
 var (
-	c              *cron.Cron
-	cronJobIDs     map[int]cron.EntryID // Menyimpan ID cron job untuk setiap setting
-	lastSchedulers map[int]int          // Menyimpan last scheduler untuk setiap setting
-	lastHaosURL    map[int]string
-	lastHaosToken  map[int]string
+	c                   *cron.Cron
+	cronJobIDs          map[int]cron.EntryID // Menyimpan ID cron job untuk setiap setting
+	lastSchedulers      map[int]int          // Menyimpan last scheduler untuk setiap setting
+	lastHaosURL         map[int]string
+	lastHaosToken       map[int]string
+	monitoringStatusMap sync.Map // Menyimpan status monitoring per gedung
 )
 
 func init() {
@@ -44,7 +51,17 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	for _, setting := range settings {
 		cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
 		cronJobID, err := c.AddFunc(cronExpression, func() {
-			runJob(useCase, entities.Setting(setting))
+			// Konversi SettingResponse ke Setting
+			settingEntity := entities.Setting{
+				ID:           setting.ID,
+				NamaGedung:   setting.NamaGedung,
+				HaosURL:      setting.HaosURL,
+				HaosToken:    setting.HaosToken,
+				Scheduler:    setting.Scheduler,
+				HargaListrik: setting.HargaListrik,
+				JenisListrik: setting.JenisListrik,
+			}
+			runJob(useCase, settingEntity)
 		})
 		if err != nil {
 			fmt.Printf("Error adding cron job for setting ID %d: %v\n", setting.ID, err)
@@ -170,7 +187,17 @@ func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseC
 				cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
 				currentSetting := setting // hindari closure bug
 				newCronJobID, err := c.AddFunc(cronExpression, func() {
-					runJob(useCase, entities.Setting(currentSetting))
+					// Konversi SettingResponse ke Setting
+					settingEntity := entities.Setting{
+						ID:           currentSetting.ID,
+						NamaGedung:   currentSetting.NamaGedung,
+						HaosURL:      currentSetting.HaosURL,
+						HaosToken:    currentSetting.HaosToken,
+						Scheduler:    currentSetting.Scheduler,
+						HargaListrik: currentSetting.HargaListrik,
+						JenisListrik: currentSetting.JenisListrik,
+					}
+					runJob(useCase, settingEntity)
 				})
 				if err != nil {
 					fmt.Printf("Error adding cron job for setting ID %d: %v\n", setting.ID, err)
@@ -189,6 +216,7 @@ func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseC
 func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 	apiURL := setting.HaosURL
 	token := setting.HaosToken
+	namaGedung := setting.NamaGedung
 	fmt.Print(uint(setting.ID))
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", apiURL, nil)
@@ -228,12 +256,38 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 		return
 	}
 
+	// Inisialisasi status monitoring untuk gedung ini
+	currentStatus := MonitoringStatus{
+		MonitoringAir:     "online",
+		MonitoringListrik: "online",
+	}
+
+	// Cek apakah gedung sudah ada di memory
+	if existingData, exists := monitoringStatusMap.Load(namaGedung); exists {
+		if status, ok := existingData.(MonitoringStatus); ok {
+			currentStatus = status
+		}
+	}
+
 	for key, value := range apiResponse.Attributes {
 		if key == "friendly_name" {
 			continue
 		}
 
 		valueStr := fmt.Sprintf("%v", value)
+
+		// Cek status monitoring berdasarkan prefix dan value
+		if strings.HasPrefix(key, "monitoring_air_water_flow_") && strings.Contains(valueStr, "unavailable") {
+			currentStatus.MonitoringAir = "offline"
+		} else if strings.HasPrefix(key, "monitoring_air_water_flow_") && !strings.Contains(valueStr, "unavailable") {
+			currentStatus.MonitoringAir = "online"
+		}
+
+		if strings.HasPrefix(key, "monitoring_listrik") && strings.Contains(valueStr, "0.0 A") {
+			currentStatus.MonitoringListrik = "offline"
+		} else if strings.HasPrefix(key, "monitoring_listrik") && !strings.Contains(valueStr, "0.0 A") {
+			currentStatus.MonitoringListrik = "online"
+		}
 
 		request := entities.CreateMonitoringDataRequest{
 			MonitoringName:  key,
@@ -248,7 +302,29 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 		}
 	}
 
-	fmt.Printf("Monitoring data saved for setting ID %d at: %s\n", setting.ID, time.Now().Format("2006-01-02 15:04:05"))
+	// Update status monitoring di memory
+	monitoringStatusMap.Store(namaGedung, currentStatus)
+
+	fmt.Printf("Monitoring data saved for setting ID %d (%s) at: %s\n", setting.ID, namaGedung, time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Status monitoring %s - Air: %s, Listrik: %s\n", namaGedung, currentStatus.MonitoringAir, currentStatus.MonitoringListrik)
+}
+
+// GetMonitoringStatus returns the current monitoring status for all buildings
+func GetMonitoringStatus() map[string][]map[string]string {
+	result := make(map[string][]map[string]string)
+
+	monitoringStatusMap.Range(func(key, value interface{}) bool {
+		namaGedung := key.(string)
+		status := value.(MonitoringStatus)
+
+		result[namaGedung] = []map[string]string{
+			{"monitoring air": status.MonitoringAir},
+			{"monitoring listrik": status.MonitoringListrik},
+		}
+		return true
+	})
+
+	return result
 }
 
 func removeUnits(value string) string {

@@ -81,6 +81,7 @@ type GetAirDataResponse struct {
 type PenggunaanAir struct {
 	Pipa   string `json:"pipa"`
 	Volume string `json:"volume"`
+	Hour   int    `json:"hour,omitempty"` // Added field for the hour
 }
 
 type GetListrikDataResponse struct {
@@ -134,13 +135,14 @@ type UpdateSettingRequest struct {
 }
 
 type SettingResponse struct {
-	ID           int    `json:"id"`
-	NamaGedung   string `json:"nama_gedung"`
-	HaosURL      string `json:"haos_url"`
-	HaosToken    string `json:"haos_token"`
-	Scheduler    int    `json:"scheduler"`
-	HargaListrik int    `json:"harga_listrik"`
-	JenisListrik string `json:"jenis_listrik" binding:"required"`
+	ID               int                  `json:"id"`
+	NamaGedung       string               `json:"nama_gedung"`
+	HaosURL          string               `json:"haos_url"`
+	HaosToken        string               `json:"haos_token"`
+	Scheduler        int                  `json:"scheduler"`
+	HargaListrik     int                  `json:"harga_listrik"`
+	JenisListrik     string               `json:"jenis_listrik" binding:"required"`
+	MonitoringStatus []map[string]string  `json:"monitoring_status,omitempty"`
 }
 
 type SettingResponseCreate struct {

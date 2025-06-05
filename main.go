@@ -32,11 +32,11 @@ func main() {
 	userUseCase := usecases.UserUseCase(userService)
 	userController := controllers.NewUserController(userUseCase)
 
-	log.Println("Initializing data toren repository, service, and use case...")
+	//log.Println("Initializing data toren repository, service, and use case...")
 	dataTorenRepository := repositories.NewDataTorenRepository(config.DB)
-	dataTorenService := services.NewDataTorenService(dataTorenRepository)
-	dataTorenUsecase := usecases.DataTorenUseCase(dataTorenService)
-	dataTorenController := controllers.NewDataTorenController(dataTorenUsecase)
+	//dataTorenService := services.NewDataTorenService(dataTorenRepository)
+	//dataTorenUsecase := usecases.DataTorenUseCase(dataTorenService)
+	//dataTorenController := controllers.NewDataTorenController(dataTorenUsecase)
 
 	log.Println("Initializing setting repository, service, and use case...")
 	settingRepository := repositories.NewSettingRepository(config.DB)
@@ -77,7 +77,7 @@ func main() {
 	infrastructure.RegisterAuthRoutes(router, authController)
 	infrastructure.RegisterMonitoringDataRoutes(router, monitoringDataController)
 	infrastructure.RegisterSettingRoutes(router, settingController)
-	infrastructure.RegisterDataTorenRoutes(router, dataTorenController)
+	//infrastructure.RegisterDataTorenRoutes(router, dataTorenController)
 	infrastructure.RegisterPengelolaGedungRoutes(router, pengelolaGedungController)
 
 	log.Println("Starting server on port 1312...")

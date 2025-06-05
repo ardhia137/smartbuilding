@@ -6,6 +6,7 @@ import (
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
+	"smartbuilding/utils"
 )
 
 type SettingServiceImpl struct {
@@ -92,6 +93,7 @@ func (s *SettingServiceImpl) GetAllCornJobs() ([]entities.SettingResponse, error
 
 	return response, nil
 }
+
 func (s *SettingServiceImpl) GetAllSetting(role string, userID uint) ([]entities.SettingResponse, error) {
 	var haosList []entities.Setting
 	var err error
@@ -111,16 +113,32 @@ func (s *SettingServiceImpl) GetAllSetting(role string, userID uint) ([]entities
 		return nil, errors.New("no data")
 	}
 
+	// Ambil status monitoring dari memory
+	monitoringStatusMap := utils.GetMonitoringStatus()
+
 	var response []entities.SettingResponse
 	for _, haos := range haosList {
+		// Cari status monitoring berdasarkan nama gedung
+		var monitoringStatus []map[string]string
+		if status, exists := monitoringStatusMap[haos.NamaGedung]; exists {
+			monitoringStatus = status
+		} else {
+			// Default status jika tidak ditemukan
+			monitoringStatus = []map[string]string{
+				{"monitoring air": "unknown"},
+				{"monitoring listrik": "unknown"},
+			}
+		}
+
 		response = append(response, entities.SettingResponse{
-			ID:           haos.ID,
-			NamaGedung:   haos.NamaGedung,
-			HaosURL:      haos.HaosURL,
-			HaosToken:    haos.HaosToken,
-			Scheduler:    haos.Scheduler,
-			HargaListrik: haos.HargaListrik,
-			JenisListrik: haos.JenisListrik,
+			ID:               haos.ID,
+			NamaGedung:       haos.NamaGedung,
+			HaosURL:          haos.HaosURL,
+			HaosToken:        haos.HaosToken,
+			Scheduler:        haos.Scheduler,
+			HargaListrik:     haos.HargaListrik,
+			JenisListrik:     haos.JenisListrik,
+			MonitoringStatus: monitoringStatus,
 		})
 	}
 
@@ -128,20 +146,35 @@ func (s *SettingServiceImpl) GetAllSetting(role string, userID uint) ([]entities
 }
 
 func (s *SettingServiceImpl) GetSettingByID(id int) (*entities.SettingResponse, error) {
-
 	haos, err := s.haosRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
+	// Ambil status monitoring dari memory
+	monitoringStatusMap := utils.GetMonitoringStatus()
+	
+	// Cari status monitoring berdasarkan nama gedung
+	var monitoringStatus []map[string]string
+	if status, exists := monitoringStatusMap[haos.NamaGedung]; exists {
+		monitoringStatus = status
+	} else {
+		// Default status jika tidak ditemukan
+		monitoringStatus = []map[string]string{
+			{"monitoring air": "unknown"},
+			{"monitoring listrik": "unknown"},
+		}
+	}
+
 	response := entities.SettingResponse{
-		ID:           haos.ID,
-		NamaGedung:   haos.NamaGedung,
-		HaosURL:      haos.HaosURL,
-		HaosToken:    haos.HaosToken,
-		Scheduler:    haos.Scheduler,
-		HargaListrik: haos.HargaListrik,
-		JenisListrik: haos.JenisListrik,
+		ID:               haos.ID,
+		NamaGedung:       haos.NamaGedung,
+		HaosURL:          haos.HaosURL,
+		HaosToken:        haos.HaosToken,
+		Scheduler:        haos.Scheduler,
+		HargaListrik:     haos.HargaListrik,
+		JenisListrik:     haos.JenisListrik,
+		MonitoringStatus: monitoringStatus,
 	}
 
 	return &response, nil
