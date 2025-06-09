@@ -43,7 +43,7 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 			dataTorenList = append(dataTorenList, entities.DataToren{
 				MonitoringName: toren.MonitoringName,
 				KapasitasToren: toren.KapasitasToren,
-				IDSetting:      haos.ID, // Gunakan ID yang baru dibuat
+				IDSetting:      haos.ID,
 			})
 		}
 		if err := tx.Create(&dataTorenList).Error; err != nil {
@@ -153,7 +153,7 @@ func (s *SettingServiceImpl) GetSettingByID(id int) (*entities.SettingResponse, 
 
 	// Ambil status monitoring dari memory
 	monitoringStatusMap := utils.GetMonitoringStatus()
-	
+
 	// Cari status monitoring berdasarkan nama gedung
 	var monitoringStatus []map[string]string
 	if status, exists := monitoringStatusMap[haos.NamaGedung]; exists {

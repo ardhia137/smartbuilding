@@ -30,7 +30,11 @@ func (c *PengelolaGedungController) CreatePengelolaGedung(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, response)
+	ctx.JSON(http.StatusCreated, gin.H{
+		"status":  "success",
+		"message": "PengelolaGedung created successfully",
+		"data":    response,
+	})
 }
 func (c *PengelolaGedungController) GetAllPengelolaGedung(ctx *gin.Context) {
 	roleInterface, exists := ctx.Get("role")
@@ -86,7 +90,11 @@ func (c *PengelolaGedungController) GetAllPengelolaGedung(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "PengelolaGedungs retrieved successfully",
+		"data":    response,
+	})
 }
 
 func (c *PengelolaGedungController) GetPengelolaGedungByID(ctx *gin.Context) {
@@ -104,7 +112,11 @@ func (c *PengelolaGedungController) GetPengelolaGedungByID(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "PengelolaGedung retrieved successfully",
+		"data":    response,
+	})
 }
 
 func (c *PengelolaGedungController) GetPengelolaGedungBySettingID(ctx *gin.Context) {
@@ -148,7 +160,11 @@ func (c *PengelolaGedungController) GetPengelolaGedungBySettingID(ctx *gin.Conte
 		}
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "PengelolaGedung retrieved successfully",
+		"data":    response,
+	})
 }
 
 func (c *PengelolaGedungController) UpdatePengelolaGedung(ctx *gin.Context) {
@@ -171,7 +187,11 @@ func (c *PengelolaGedungController) UpdatePengelolaGedung(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "PengelolaGedung updated successfully",
+		"data":    response,
+	})
 }
 
 func (c *PengelolaGedungController) DeletePengelolaGedung(ctx *gin.Context) {

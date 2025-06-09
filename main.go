@@ -9,7 +9,6 @@ import (
 	"smartbuilding/implementations/services"
 	infrastructure "smartbuilding/infrasturcture"
 	"smartbuilding/usecases"
-	"smartbuilding/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -57,7 +56,7 @@ func main() {
 	authController := controllers.NewAuthController(authUsecase)
 
 	log.Println("Starting Monitoring Data cron job in the background...")
-	go utils.StartMonitoringDataJob(monitoringDataUsecase, settingUsecase, monitoringDataRepository, settingRepository)
+	//go utils.StartMonitoringDataJob(monitoringDataUsecase, settingUsecase, monitoringDataRepository, settingRepository)
 
 	log.Println("Setting up routes...")
 	router := gin.Default()

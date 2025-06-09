@@ -30,8 +30,11 @@ func (c *SettingController) CreateSetting(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusCreated, response)
+	ctx.JSON(http.StatusCreated, gin.H{
+		"status":  "success",
+		"message": "Setting created successfully",
+		"data":    response,
+	})
 }
 
 func (c *SettingController) GetAllSetting(ctx *gin.Context) {
@@ -55,8 +58,11 @@ func (c *SettingController) GetAllSetting(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusCreated, gin.H{
+		"status":  "success",
+		"message": "Settings retrieved successfully",
+		"data":    response,
+	})
 }
 
 func (c *SettingController) GetSettingByID(ctx *gin.Context) {
@@ -73,7 +79,11 @@ func (c *SettingController) GetSettingByID(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusCreated, gin.H{
+		"status":  "success",
+		"message": "Setting retrieved successfully",
+		"data":    response,
+	})
 }
 
 func (c *SettingController) UpdateSetting(ctx *gin.Context) {
@@ -95,8 +105,11 @@ func (c *SettingController) UpdateSetting(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Setting updated successfully",
+		"data":    response,
+	})
 }
 
 func (c *SettingController) DeleteSetting(ctx *gin.Context) {

@@ -404,6 +404,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			} else if jenisListrik == "3_phase" {
 				kw := 1.732 * 380 * arus * 0.8 / 1000
 				kwh = kw * 1 // 1 jam
+
 			}
 
 			nama := strings.ReplaceAll(strings.TrimPrefix(monitoringName, "monitoring_listrik_arus_"), "_", " ")
@@ -411,7 +412,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 			penggunaanList = append(penggunaanList, entities.PenggunaanListrik{
 				Nama:  nama,
-				Value: fmt.Sprintf("%.2f Kwh", kwh),
+				Value: fmt.Sprintf("%.2f kW", kwh),
 			})
 
 			biayaList = append(biayaList, entities.BiayaListrik{
@@ -438,8 +439,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		} else if jenisListrik == "3_phase" {
 			dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
 		}
-
-		energiKWh := dayaKW * currentHour
+		//fmt.Println(len(dataPenggunaanHarian))
+		energiKWh := dayaKW * float64(len(dataPenggunaanHarian))
 		totalWatt = energiKWh
 	}
 
@@ -461,19 +462,20 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
 			}
 
-			energiKWh := dayaKW * currentHour
+			energiKWh := dayaKW * float64(len(dataPenggunaanHarian))
+
 			totalWatt += energiKWh
 
 			totalDaya = append(totalDaya, entities.TotalDayaListrik{
 				Nama:  strings.ReplaceAll(strings.TrimPrefix(key, "monitoring_listrik_arus_"), "_", " "),
-				Value: fmt.Sprintf("%.2f kWh", energiKWh),
+				Value: fmt.Sprintf("%.2f kW", energiKWh),
 			})
 		}
 	}
 
 	for _, dayaItem := range totalDaya {
 		nama := dayaItem.Nama
-		kwhStr := strings.TrimSuffix(dayaItem.Value, " kWh")
+		kwhStr := strings.TrimSuffix(dayaItem.Value, " kW")
 		kwh, _ := strconv.ParseFloat(kwhStr, 64)
 		biaya := kwh * tarifListrik
 
@@ -498,11 +500,19 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Rarus := arus / jumlahSampel
 				kw := 220 * Rarus * 0.8 / 1000
 				kwh = kw * 24
+
+				// Log for monitoring_listrik_arus_listrik_layar_megatron
+
 			} else if jenisListrik == "3_phase" {
 				jumlahSampel := 86400 / schadule
 				Rarus := arus / jumlahSampel
 				kw := 1.732 * 380 * Rarus * 0.8 / 1000
 				kwh = kw * 24
+
+				// Log for monitoring_listrik_arus_listrik_layar_megatron
+				//if harian.MonitoringName == "monitoring_listrik_arus_listrik_layar_megatron" {
+				//	log.Printf("DEBUG - monitoring_listrik_arus_listrik_layar_megatron: arus=%.2f, rarus=%.2f, jumlahSampel=%.2f", arus, kw, len(dataPenggunaanHarian))
+				//}
 			}
 
 			nama := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " ")
@@ -513,7 +523,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
 				dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanListrik{
 					Nama:  nama,
-					Value: fmt.Sprintf("%.2f Kwh", kwh),
+					Value: fmt.Sprintf("%.2f kW", kwh),
 				})
 
 				dataBiayaMingguan[hari] = append(dataBiayaMingguan[hari], entities.BiayaListrik{
@@ -589,7 +599,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	response := entities.GetListrikDataResponse{
 		NamaGedung:                    namaGedung,
-		TotalWatt:                     fmt.Sprintf("%.2f kWh", totalWatt),
+		TotalWatt:                     fmt.Sprintf("%.2f kW", totalWatt),
 		TotalDayaListrik:              totalDaya,
 		BiayaPemakaian:                totalBiaya,
 		DataPenggunaanListrikHarian:   dataPenggunaanHarian,   // Per jam
@@ -606,7 +616,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	// Konversi data bulanan (per minggu)
 	for minggu, data := range dataPenggunaanBulanan {
-		response.DataPenggunaanListrikBulanan[minggu] = convertToSliceFromMap(data, "Kwh")
+		response.DataPenggunaanListrikBulanan[minggu] = convertToSliceFromMap(data, "kW")
 	}
 	for minggu, data := range dataBiayaBulanan {
 		response.DataBiayaListrikBulanan[minggu] = convertBiayaToSliceFromMap(data)
@@ -614,7 +624,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	// Konversi data tahunan (per bulan)
 	for bulan, data := range dataPenggunaanTahunan {
-		response.DataPenggunaanListrikTahunan[bulan] = convertToSliceFromMap(data, "Kwh")
+		response.DataPenggunaanListrikTahunan[bulan] = convertToSliceFromMap(data, "kW")
 	}
 	for bulan, data := range dataBiayaTahunan {
 		response.DataBiayaListrikTahunan[bulan] = convertBiayaToSliceFromMap(data)

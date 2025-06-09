@@ -5,8 +5,8 @@ type DataToren struct {
 	MonitoringName string `json:"monitoring_name" gorm:"type:varchar(255)"`
 	KapasitasToren int    `json:"kapasitas_toren" gorm:"NOT NULL"`
 	IDSetting      int    `gorm:"not null" json:"id_setting"`
-
-	Setting Setting `gorm:"foreignKey:IDSetting" json:"setting"`
+	//
+	//Setting Setting `gorm:"foreignKey:IDSetting" json:"setting"`
 }
 
 func (DataToren) TableName() string {

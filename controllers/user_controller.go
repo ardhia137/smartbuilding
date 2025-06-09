@@ -17,16 +17,6 @@ func NewUserController(userUseCase usecases.UserUseCase) *UserController {
 	return &UserController{userUseCase: userUseCase}
 }
 
-// @Summary Mendapatkan semua pengguna
-// @Description Mendapatkan daftar semua pengguna berdasarkan role dan user ID
-// @Tags users
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan daftar pengguna"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 500 {object} map[string]interface{} "Internal Server Error"
-// @Router /users [get]
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	roleInterface, exists := ctx.Get("role")
 	if !exists {

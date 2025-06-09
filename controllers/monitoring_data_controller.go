@@ -42,6 +42,7 @@ func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, response)
 }
+
 // @Summary Mendapatkan data monitoring air
 // @Description Mendapatkan data monitoring air berdasarkan ID setting
 // @Tags monitoring
@@ -74,7 +75,11 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		ctx.JSON(http.StatusOK, response)
+		ctx.JSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "GetMonitoringAir retrieved successfully",
+			"data":    response,
+		})
 		return
 	}
 
@@ -98,7 +103,11 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "GetMonitoringAir retrieved successfully",
+		"data":    response,
+	})
 }
 
 // @Summary Mendapatkan data monitoring listrik
@@ -133,7 +142,11 @@ func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		ctx.JSON(http.StatusOK, response)
+		ctx.JSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "GetMonitoringListrik retrieved successfully",
+			"data":    response,
+		})
 		return
 	}
 
@@ -157,5 +170,9 @@ func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "GetMonitoringListrik retrieved successfully",
+		"data":    response,
+	})
 }
