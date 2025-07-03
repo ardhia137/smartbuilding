@@ -5,6 +5,7 @@ import (
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -113,6 +114,10 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 				// Hour bisa diambil dari jamStr jika dibutuhkan
 			})
 		}
+		// Sort ascending berdasarkan nama pipa
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].Pipa < list[j].Pipa
+		})
 		dataPenggunaanHarian[jamStr] = list
 	}
 	latestWaterFlowMasuk := make(map[string]float64)
@@ -277,6 +282,10 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 				Volume: fmt.Sprintf("%.0f L", volume),
 			})
 		}
+		// Sort ascending berdasarkan nama pipa
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Pipa < result[j].Pipa
+		})
 		return result
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
@@ -296,17 +305,31 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 	}
 
 	for minggu, data := range dataPenggunaanMingguan {
+		// Sort ascending berdasarkan nama pipa
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].Pipa < data[j].Pipa
+		})
 		response.DataPenggunaanMingguan[minggu] = data
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	for bulan, data := range dataPenggunaanBulanan {
-		response.DataPenggunaanBulanan[bulan] = convertMingguanTahunan(data)
+		// Sort ascending berdasarkan nama pipa
+		sortedData := convertMingguanTahunan(data)
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Pipa < sortedData[j].Pipa
+		})
+		response.DataPenggunaanBulanan[bulan] = sortedData
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	for tahun, data := range dataPenggunaanTahunan {
-		response.DataPenggunaanTahunan[tahun] = convertMingguanTahunan(data)
+		// Sort ascending berdasarkan nama pipa
+		sortedData := convertMingguanTahunan(data)
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Pipa < sortedData[j].Pipa
+		})
+		response.DataPenggunaanTahunan[tahun] = sortedData
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
@@ -420,6 +443,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Biaya: fmt.Sprintf("Rp. %.0f", biaya),
 			})
 		}
+
+		// Sort ascending berdasarkan nama monitoring
+		sort.Slice(penggunaanList, func(i, j int) bool {
+			return penggunaanList[i].Nama < penggunaanList[j].Nama
+		})
+		sort.Slice(biayaList, func(i, j int) bool {
+			return biayaList[i].Nama < biayaList[j].Nama
+		})
 
 		dataPenggunaanHarian[jamStr] = penggunaanList
 		dataBiayaHarian[jamStr] = biayaList
@@ -583,6 +614,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Value: fmt.Sprintf("%.2f %s", value, unit),
 			})
 		}
+		// Sort ascending berdasarkan nama monitoring
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Nama < result[j].Nama
+		})
 		return result
 	}
 
@@ -594,6 +629,10 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Biaya: fmt.Sprintf("Rp. %.0f", biaya),
 			})
 		}
+		// Sort ascending berdasarkan nama monitoring
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Nama < result[j].Nama
+		})
 		return result
 	}
 
@@ -614,20 +653,63 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		UpdatedAt:                     updatedAt,
 	}
 
+	// Sort weekly data ascending berdasarkan nama monitoring
+	for hari, data := range dataPenggunaanMingguan {
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].Nama < data[j].Nama
+		})
+		response.DataPenggunaanListrikMingguan[hari] = data
+	}
+
+	for hari, data := range dataBiayaMingguan {
+		sort.Slice(data, func(i, j int) bool {
+			return data[i].Nama < data[j].Nama
+		})
+		response.DataBiayaListrikMingguan[hari] = data
+	}
+
+	// Sort total daya dan biaya ascending berdasarkan nama
+	sort.Slice(totalDaya, func(i, j int) bool {
+		return totalDaya[i].Nama < totalDaya[j].Nama
+	})
+	sort.Slice(totalBiaya, func(i, j int) bool {
+		return totalBiaya[i].Nama < totalBiaya[j].Nama
+	})
+
 	// Konversi data bulanan (per minggu)
 	for minggu, data := range dataPenggunaanBulanan {
-		response.DataPenggunaanListrikBulanan[minggu] = convertToSliceFromMap(data, "kW")
+		// Sort ascending berdasarkan nama monitoring
+		sortedData := convertToSliceFromMap(data, "kW")
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Nama < sortedData[j].Nama
+		})
+		response.DataPenggunaanListrikBulanan[minggu] = sortedData
 	}
 	for minggu, data := range dataBiayaBulanan {
-		response.DataBiayaListrikBulanan[minggu] = convertBiayaToSliceFromMap(data)
+		// Sort ascending berdasarkan nama monitoring
+		sortedData := convertBiayaToSliceFromMap(data)
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Nama < sortedData[j].Nama
+		})
+		response.DataBiayaListrikBulanan[minggu] = sortedData
 	}
 
 	// Konversi data tahunan (per bulan)
 	for bulan, data := range dataPenggunaanTahunan {
-		response.DataPenggunaanListrikTahunan[bulan] = convertToSliceFromMap(data, "kW")
+		// Sort ascending berdasarkan nama monitoring
+		sortedData := convertToSliceFromMap(data, "kW")
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Nama < sortedData[j].Nama
+		})
+		response.DataPenggunaanListrikTahunan[bulan] = sortedData
 	}
 	for bulan, data := range dataBiayaTahunan {
-		response.DataBiayaListrikTahunan[bulan] = convertBiayaToSliceFromMap(data)
+		// Sort ascending berdasarkan nama monitoring
+		sortedData := convertBiayaToSliceFromMap(data)
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].Nama < sortedData[j].Nama
+		})
+		response.DataBiayaListrikTahunan[bulan] = sortedData
 	}
 
 	return response, nil

@@ -4,7 +4,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
+	"sync"
 )
+
+// Global variable untuk menyimpan blacklist (sementara, bisa diganti dengan Redis/database)
+var blacklistedTokens = make(map[string]bool)
+var blacklistMutex sync.RWMutex
+
+// AddToBlacklist menambahkan token ke blacklist
+func AddToBlacklist(token string) {
+	blacklistMutex.Lock()
+	defer blacklistMutex.Unlock()
+	blacklistedTokens[token] = true
+}
+
+// IsTokenBlacklisted mengecek apakah token ada di blacklist
+func IsTokenBlacklisted(token string) bool {
+	blacklistMutex.RLock()
+	defer blacklistMutex.RUnlock()
+	return blacklistedTokens[token]
+}
 
 func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -24,6 +43,16 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			ctx.JSON(http.StatusUnauthorized, gin.H{
 				"status":  "error",
 				"message": "Invalid token format",
+			})
+			ctx.Abort()
+			return
+		}
+
+		// Cek apakah token ada di blacklist
+		if IsTokenBlacklisted(tokenString) {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Token has been revoked (user logged out)",
 			})
 			ctx.Abort()
 			return
@@ -104,6 +133,16 @@ func UserIDMiddleware() gin.HandlerFunc {
 			ctx.JSON(http.StatusUnauthorized, gin.H{
 				"status":  "error",
 				"message": "Invalid token format",
+			})
+			ctx.Abort()
+			return
+		}
+
+		// Cek apakah token ada di blacklist
+		if IsTokenBlacklisted(tokenString) {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "Token has been revoked (user logged out)",
 			})
 			ctx.Abort()
 			return

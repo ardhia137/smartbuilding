@@ -3,10 +3,12 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"smartbuilding/entities"
 	"smartbuilding/usecases"
+	"smartbuilding/utils"
 )
 
 type AuthController struct {
@@ -161,6 +163,10 @@ func (c *AuthController) Logout(ctx *gin.Context) {
 		})
 		return
 	}
+
+	// Tambahkan token ke blacklist global
+	tokenString := strings.TrimPrefix(token, "Bearer ")
+	utils.AddToBlacklist(tokenString)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  "success",

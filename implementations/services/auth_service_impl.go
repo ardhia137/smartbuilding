@@ -10,16 +10,38 @@ import (
 	"smartbuilding/utils"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type authServiceImpl struct {
 	authRepo    repositories.AuthRepository
 	settingRepo repositories.SettingRepository
+	// Blacklist untuk menyimpan token yang sudah logout
+	blacklistedTokens map[string]time.Time
+	blacklistMutex    sync.RWMutex
 }
 
 func NewAuthService(authRepo repositories.AuthRepository, settingRepo repositories.SettingRepository) services.AuthService {
-	return &authServiceImpl{authRepo, settingRepo}
+	service := &authServiceImpl{
+		authRepo:          authRepo,
+		settingRepo:       settingRepo,
+		blacklistedTokens: make(map[string]time.Time),
+	}
+	
+	// Jalankan cleanup routine setiap jam
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		
+		for range ticker.C {
+			service.cleanupExpiredBlacklistedTokens()
+		}
+	}()
+	
+	return service
 }
+
 func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse, error) {
 	user, err := s.authRepo.FindUserByEmail(email)
 	if err != nil {
@@ -55,6 +77,14 @@ func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse,
 }
 
 func (s *authServiceImpl) ValidateToken(token string) (*entities.User, error) {
+	// Bersihkan token dari "Bearer " prefix
+	token = strings.TrimPrefix(token, "Bearer ")
+	
+	// Cek apakah token ada di blacklist
+	if s.isTokenBlacklisted(token) {
+		return nil, errors.New("token has been revoked (user logged out)")
+	}
+	
 	claims, err := utils.VerifyToken(token)
 	if err != nil {
 		return nil, errors.New("invalid token")
@@ -83,8 +113,49 @@ func (s *authServiceImpl) RefreshToken(token string) (entities.LoginResponse, er
 }
 
 func (s *authServiceImpl) Logout(token string) error {
+	// Bersihkan token dari "Bearer " prefix
+	token = strings.TrimPrefix(token, "Bearer ")
+	
+	// Verifikasi token terlebih dahulu untuk memastikan valid
+	claims, err := utils.VerifyToken(token)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+	
+	// Tambahkan token ke blacklist dengan waktu logout
+	s.blacklistMutex.Lock()
+	s.blacklistedTokens[token] = time.Now()
+	s.blacklistMutex.Unlock()
+	
+	// Log untuk debugging
+	fmt.Printf("Token for user %s (ID: %d) has been blacklisted\n", claims.Email, claims.UserID)
+	
 	return nil
 }
+
+// isTokenBlacklisted mengecek apakah token ada di blacklist
+func (s *authServiceImpl) isTokenBlacklisted(token string) bool {
+	s.blacklistMutex.RLock()
+	defer s.blacklistMutex.RUnlock()
+	
+	_, exists := s.blacklistedTokens[token]
+	return exists
+}
+
+// cleanupExpiredBlacklistedTokens membersihkan token yang sudah expired dari blacklist
+func (s *authServiceImpl) cleanupExpiredBlacklistedTokens() {
+	s.blacklistMutex.Lock()
+	defer s.blacklistMutex.Unlock()
+	
+	now := time.Now()
+	for token, logoutTime := range s.blacklistedTokens {
+		// Hapus token yang sudah lebih dari 24 jam di blacklist
+		if now.Sub(logoutTime) > 24*time.Hour {
+			delete(s.blacklistedTokens, token)
+		}
+	}
+}
+
 func (s *authServiceImpl) ChangePassword(token, oldPassword, newPassword string) error {
 	token = strings.TrimPrefix(token, "Bearer ")
 	claims, err := utils.VerifyToken(token)
