@@ -5,11 +5,11 @@ import (
 )
 
 type CreateUserRequest struct {
-	Username        string                             `json:"username" binding:"required"`
-	Email           string                             `json:"email" binding:"required,email"`
-	Password        string                             `json:"password" binding:"required,min=6,max=100"`
-	Role            string                             `json:"role" binding:"required,oneof=admin manajement pengelola"`
-	PengelolaGedung []CreateUserPengelolaGedungRequest `json:"pengelola_gedung"`
+	Username string                      `json:"username" binding:"required"`
+	Email    string                      `json:"email" binding:"required,email"`
+	Password string                      `json:"password" binding:"required,min=6,max=100"`
+	Role     string                      `json:"role" binding:"required,oneof=admin manajement pengelola"`
+	HakAkses []CreateUserHakAksesRequest `json:"hak_akses"`
 }
 
 type UpdateUserRequest struct {
@@ -32,10 +32,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token   string    `json:"token"`
-	Role    string    `json:"role"`
-	UserId  string    `json:"user_id"`
-	Setting []Setting `json:"Setting"`
+	Token  string   `json:"token"`
+	Role   string   `json:"role"`
+	UserId string   `json:"user_id"`
+	Gedung []Gedung `json:"gedung"`
 }
 
 type ChangePasswordRequest struct {
@@ -46,7 +46,7 @@ type ChangePasswordRequest struct {
 type CreateMonitoringDataRequest struct {
 	MonitoringName  string `json:"monitoring_name" validate:"required"`
 	MonitoringValue string `json:"monitoring_value" validate:"required"`
-	IDSetting       uint   `json:"id_setting" validate:"required"`
+	IDGedung        uint   `json:"id_gedung" validate:"required"`
 }
 
 type MonitoringDataResponse struct {
@@ -115,17 +115,17 @@ type BiayaListrik struct {
 	Biaya string `json:"Biaya"`
 }
 
-type CreateSettingRequest struct {
-	NamaGedung   string                   `json:"nama_gedung" binding:"required"`
-	HaosURL      string                   `json:"haos_url"       binding:"required"`
-	HaosToken    string                   `json:"haos_token"     binding:"required"`
-	Scheduler    int                      `json:"scheduler"      binding:"required"`
-	HargaListrik int                      `json:"harga_listrik"  binding:"required"`
-	DataToren    []CreateDataTorenRequest `json:"data_toren"`
-	JenisListrik string                   `json:"jenis_listrik" binding:"required,oneof='1_phase' '3_phase'"`
+type CreateGedungRequest struct {
+	NamaGedung   string                `json:"nama_gedung" binding:"required"`
+	HaosURL      string                `json:"haos_url"       binding:"required"`
+	HaosToken    string                `json:"haos_token"     binding:"required"`
+	Scheduler    int                   `json:"scheduler"      binding:"required"`
+	HargaListrik int                   `json:"harga_listrik"  binding:"required"`
+	DataToren    []CreateTorentRequest `json:"data_toren"`
+	JenisListrik string                `json:"jenis_listrik" binding:"required,oneof='1_phase' '3_phase'"`
 }
 
-type UpdateSettingRequest struct {
+type UpdateGedungRequest struct {
 	NamaGedung   string `json:"nama_gedung" binding:"required"`
 	HaosURL      string `json:"haos_url"       binding:"required"`
 	HaosToken    string `json:"haos_token"     binding:"required"`
@@ -134,61 +134,61 @@ type UpdateSettingRequest struct {
 	JenisListrik string `json:"jenis_listrik" binding:"required,oneof='1_phase' '3_phase'"`
 }
 
-type SettingResponse struct {
-	ID               int                  `json:"id"`
-	NamaGedung       string               `json:"nama_gedung"`
-	HaosURL          string               `json:"haos_url"`
-	HaosToken        string               `json:"haos_token"`
-	Scheduler        int                  `json:"scheduler"`
-	HargaListrik     int                  `json:"harga_listrik"`
-	JenisListrik     string               `json:"jenis_listrik" binding:"required"`
-	MonitoringStatus []map[string]string  `json:"monitoring_status,omitempty"`
+type GedungResponse struct {
+	ID               int                 `json:"id"`
+	NamaGedung       string              `json:"nama_gedung"`
+	HaosURL          string              `json:"haos_url"`
+	HaosToken        string              `json:"haos_token"`
+	Scheduler        int                 `json:"scheduler"`
+	HargaListrik     int                 `json:"harga_listrik"`
+	JenisListrik     string              `json:"jenis_listrik" binding:"required"`
+	MonitoringStatus []map[string]string `json:"monitoring_status,omitempty"`
 }
 
-type SettingResponseCreate struct {
-	ID           int         `json:"id"`
-	NamaGedung   string      `json:"nama_gedung"`
-	HaosURL      string      `json:"haos_url"`
-	HaosToken    string      `json:"haos_token"`
-	Scheduler    int         `json:"scheduler"`
-	HargaListrik int         `json:"harga_listrik"`
-	JenisListrik string      `json:"jenis_listrik" binding:"required"`
-	DataToren    []DataToren `json:"data_toren"`
+type GedungResponseCreate struct {
+	ID           int      `json:"id"`
+	NamaGedung   string   `json:"nama_gedung"`
+	HaosURL      string   `json:"haos_url"`
+	HaosToken    string   `json:"haos_token"`
+	Scheduler    int      `json:"scheduler"`
+	HargaListrik int      `json:"harga_listrik"`
+	JenisListrik string   `json:"jenis_listrik" binding:"required"`
+	DataToren    []Torent `json:"data_toren"`
 }
 
-type CreateDataTorenRequest struct {
+type CreateTorentRequest struct {
 	MonitoringName string `json:"monitoring_name" binding:"required"`
 	KapasitasToren int    `json:"kapasitas_toren" binding:"required"`
-	IDSetting      int    `json:"id_setting" binding:"required"`
+	IDGedung       int    `json:"id_gedung" binding:"required"`
 }
 
-type DataTorenResponse struct {
+type TorentResponse struct {
 	ID             uint   `json:"id"`
 	MonitoringName string `json:"monitoring_name"`
 	KapasitasToren int    `json:"kapasitas_toren"`
-	IDSetting      int    `json:"id_setting"`
+	IDGedung       int    `json:"id_gedung"`
 }
 
-type CreatePengelolaGedungRequest struct {
-	UserID    int `json:"id_user" binding:"required"`
-	SettingID int `json:"id_setting" binding:"required"`
+type CreateHakAksesRequest struct {
+	UserID   int `json:"id_user" binding:"required"`
+	GedungID int `json:"id_gedung" binding:"required"`
 }
 
-type CreateUserPengelolaGedungRequest struct {
-	SettingID int `json:"setting_id" binding:"required"`
+type CreateUserHakAksesRequest struct {
+	GedungID int `json:"gedung_id" binding:"required"`
 }
 
-type PengelolaGedungResponse struct {
-	ID        uint `json:"id"`
-	UserID    int  `json:"id_user"`
-	SettingID int  `json:"id_setting"`
+type HakAksesResponse struct {
+	ID       uint `json:"id"`
+	UserID   int  `json:"id_user"`
+	GedungID int  `json:"id_gedung"`
 }
 
-type AllPengelolaGedungResponse struct {
+type AllHakAksesResponse struct {
 	ID         uint   `json:"id"`
 	NamaGedung string `json:"nama_gedung"`
 	Username   string `json:"username"`
 	Email      string `json:"email"`
 	Role       string `json:"role"`
-	SettingID  int    `json:"setting_id"`
+	GedungID   int    `json:"gedung_id"`
 }

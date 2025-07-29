@@ -9,7 +9,7 @@ type User struct {
 	Username  string    `gorm:"type:varchar(255);not null"`
 	Email     string    `gorm:"type:varchar(255);not null;unique"`
 	Password  string    `gorm:"type:varchar(255);not null"`
-	Role      string    `gorm:"type:enum('admin', 'manajement', 'pengelola');default:'';not null"`
+	Role      string    `gorm:"type:enum('admin', 'manajement', 'pengelola');default:'pengelola';not null"`
 	CreatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
 }

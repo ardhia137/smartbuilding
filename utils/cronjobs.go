@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/robfig/cron/v3"
 	"io/ioutil"
 	"net/http"
 	"smartbuilding/entities"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/robfig/cron/v3"
 
 	//"strconv"
 	"time"
@@ -38,44 +39,44 @@ func init() {
 	lastHaosToken = make(map[int]string)
 }
 
-func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCase usecases.SettingUseCase, monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
+func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, gedungUseCase usecases.GedungUseCase, monitoringDataRepo repositories.MonitoringDataRepository, gedungRepo repositories.GedungRepository) {
 	c = cron.New()
 
 	// Inisialisasi cron jobs untuk semua settings
-	settings, err := settingUseCase.GetAllCornJobs()
+	gedung, err := gedungUseCase.GetAllCornJobs()
 	if err != nil {
-		fmt.Println("Error fetching settings:", err)
+		fmt.Println("Error fetching gedung:", err)
 		return
 	}
 
-	for _, setting := range settings {
-		cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
+	for _, gedungItem := range gedung {
+		cronExpression := fmt.Sprintf("@every %ds", gedungItem.Scheduler)
 		cronJobID, err := c.AddFunc(cronExpression, func() {
 
-			settingEntity := entities.Setting{
-				ID:           setting.ID,
-				NamaGedung:   setting.NamaGedung,
-				HaosURL:      setting.HaosURL,
-				HaosToken:    setting.HaosToken,
-				Scheduler:    setting.Scheduler,
-				HargaListrik: setting.HargaListrik,
-				JenisListrik: setting.JenisListrik,
+			gedungEntity := entities.Gedung{
+				ID:           gedungItem.ID,
+				NamaGedung:   gedungItem.NamaGedung,
+				HaosURL:      gedungItem.HaosURL,
+				HaosToken:    gedungItem.HaosToken,
+				Scheduler:    gedungItem.Scheduler,
+				HargaListrik: gedungItem.HargaListrik,
+				JenisListrik: gedungItem.JenisListrik,
 			}
-			runJob(useCase, settingEntity)
+			runJob(useCase, gedungEntity)
 		})
 		if err != nil {
-			fmt.Printf("Error adding cron job for setting ID %d: %v\n", setting.ID, err)
+			fmt.Printf("Error adding cron job for gedung ID %d: %v\n", gedungItem.ID, err)
 			continue
 		}
 
-		cronJobIDs[setting.ID] = cronJobID
-		lastSchedulers[setting.ID] = setting.Scheduler
-		lastHaosURL[setting.ID] = setting.HaosURL
+		cronJobIDs[gedungItem.ID] = cronJobID
+		lastSchedulers[gedungItem.ID] = gedungItem.Scheduler
+		lastHaosURL[gedungItem.ID] = gedungItem.HaosURL
 	}
 
 	// Jadwalkan rekap harian
 	_, err = c.AddFunc("59 23 * * *", func() {
-		rekapHarian(monitoringDataRepo, settingRepo)
+		rekapHarian(monitoringDataRepo, gedungRepo)
 	})
 	if err != nil {
 		fmt.Println("Error scheduling daily recap job:", err)
@@ -83,13 +84,13 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	}
 
 	// Mulai monitor perubahan scheduler
-	go monitorSchedulerChanges(useCase, settingUseCase)
+	go monitorSchedulerChanges(useCase, gedungUseCase)
 
 	c.Start()
 	select {}
 }
 
-func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, settingRepo repositories.SettingRepository) {
+func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, gedungRepo repositories.GedungRepository) {
 	fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
 
 	monitoringData, err := monitoringDataRepo.FindAll()
@@ -98,7 +99,7 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 		return
 	}
 
-	settingDataMap := make(map[uint]map[string][]float64)
+	gedungDataMap := make(map[uint]map[string][]float64)
 
 	for _, data := range monitoringData {
 		cleanedValue := removeUnits(data.MonitoringValue)
@@ -108,15 +109,15 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 			continue
 		}
 
-		if _, ok := settingDataMap[data.IDSetting]; !ok {
-			settingDataMap[data.IDSetting] = make(map[string][]float64)
+		if _, ok := gedungDataMap[data.IDGedung]; !ok {
+			gedungDataMap[data.IDGedung] = make(map[string][]float64)
 		}
 
 		// Simpan nilai berdasarkan MonitoringName
-		settingDataMap[data.IDSetting][data.MonitoringName] = append(settingDataMap[data.IDSetting][data.MonitoringName], value)
+		gedungDataMap[data.IDGedung][data.MonitoringName] = append(gedungDataMap[data.IDGedung][data.MonitoringName], value)
 	}
 
-	for idSetting, monitoringMap := range settingDataMap {
+	for idGedung, monitoringMap := range gedungDataMap {
 		for monitoringName, values := range monitoringMap {
 			total := 0.0
 
@@ -133,14 +134,14 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 			harianData := entities.MonitoringData{
 				MonitoringName:  monitoringName,
 				MonitoringValue: fmt.Sprintf("%.2f", total),
-				IDSetting:       idSetting,
+				IDGedung:        idGedung,
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
 			}
 
 			_, err := monitoringDataRepo.SaveHarianData(harianData)
 			if err != nil {
-				fmt.Printf("Error saving harian data for %s (IDSetting %d): %v\n", monitoringName, idSetting, err)
+				fmt.Printf("Error saving harian data for %s (IDGedung %d): %v\n", monitoringName, idGedung, err)
 			}
 		}
 	}
@@ -153,54 +154,54 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 
 	fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
 }
-func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseCase usecases.SettingUseCase) {
+func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, gedungUseCase usecases.GedungUseCase) {
 	for {
-		settings, err := settingUseCase.GetAllCornJobs()
+		gedung, err := gedungUseCase.GetAllCornJobs()
 		if err != nil {
 			fmt.Println("Error fetching settings:", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		for _, setting := range settings {
-			schedulerChanged := setting.Scheduler != lastSchedulers[setting.ID]
-			urlChanged := setting.HaosURL != lastHaosURL[setting.ID]
-			tokenChanged := setting.HaosToken != lastHaosToken[setting.ID]
+		for _, gedungItem := range gedung {
+			schedulerChanged := gedungItem.Scheduler != lastSchedulers[gedungItem.ID]
+			urlChanged := gedungItem.HaosURL != lastHaosURL[gedungItem.ID]
+			tokenChanged := gedungItem.HaosToken != lastHaosToken[gedungItem.ID]
 
 			if schedulerChanged || urlChanged || tokenChanged {
 				// Simpan data terbaru
-				lastSchedulers[setting.ID] = setting.Scheduler
-				lastHaosURL[setting.ID] = setting.HaosURL
-				lastHaosToken[setting.ID] = setting.HaosToken
+				lastSchedulers[gedungItem.ID] = gedungItem.Scheduler
+				lastHaosURL[gedungItem.ID] = gedungItem.HaosURL
+				lastHaosToken[gedungItem.ID] = gedungItem.HaosToken
 
 				// Hapus cron job lama jika ada
-				if cronJobID, exists := cronJobIDs[setting.ID]; exists {
+				if cronJobID, exists := cronJobIDs[gedungItem.ID]; exists {
 					c.Remove(cronJobID)
 				}
 
 				// Tambahkan cron job baru dengan data terbaru
-				cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
-				currentSetting := setting // hindari closure bug
+				cronExpression := fmt.Sprintf("@every %ds", gedungItem.Scheduler)
+				currentGedung := gedungItem // hindari closure bug
 				newCronJobID, err := c.AddFunc(cronExpression, func() {
-					// Konversi SettingResponse ke Setting
-					settingEntity := entities.Setting{
-						ID:           currentSetting.ID,
-						NamaGedung:   currentSetting.NamaGedung,
-						HaosURL:      currentSetting.HaosURL,
-						HaosToken:    currentSetting.HaosToken,
-						Scheduler:    currentSetting.Scheduler,
-						HargaListrik: currentSetting.HargaListrik,
-						JenisListrik: currentSetting.JenisListrik,
+					// Konversi GedungResponse ke Gedung
+					gedungEntity := entities.Gedung{
+						ID:           currentGedung.ID,
+						NamaGedung:   currentGedung.NamaGedung,
+						HaosURL:      currentGedung.HaosURL,
+						HaosToken:    currentGedung.HaosToken,
+						Scheduler:    currentGedung.Scheduler,
+						HargaListrik: currentGedung.HargaListrik,
+						JenisListrik: currentGedung.JenisListrik,
 					}
-					runJob(useCase, settingEntity)
+					runJob(useCase, gedungEntity)
 				})
 				if err != nil {
-					fmt.Printf("Error adding cron job for setting ID %d: %v\n", setting.ID, err)
+					fmt.Printf("Error adding cron job for gedung ID %d: %v\n", gedungItem.ID, err)
 					continue
 				}
 
-				cronJobIDs[setting.ID] = newCronJobID
-				fmt.Printf("Updated job for setting ID %d (Scheduler: %ds, URL: %s)\n", setting.ID, setting.Scheduler, setting.HaosURL)
+				cronJobIDs[gedungItem.ID] = newCronJobID
+				fmt.Printf("Updated job for gedung ID %d (Scheduler: %ds, URL: %s)\n", gedungItem.ID, gedungItem.Scheduler, gedungItem.HaosURL)
 			}
 		}
 
@@ -208,15 +209,15 @@ func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, settingUseC
 	}
 }
 
-func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
-	apiURL := setting.HaosURL
-	token := setting.HaosToken
-	namaGedung := setting.NamaGedung
-	fmt.Print(uint(setting.ID))
+func runJob(useCase usecases.MonitoringDataUseCase, gedung entities.Gedung) {
+	apiURL := gedung.HaosURL
+	token := gedung.HaosToken
+	namaGedung := gedung.NamaGedung
+	fmt.Print(uint(gedung.ID))
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		fmt.Printf("Error creating HTTP request for setting ID %d: %v\n", setting.ID, err)
+		fmt.Printf("Error creating HTTP request for gedung ID %d: %v\n", gedung.ID, err)
 		return
 	}
 
@@ -224,19 +225,19 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Error fetching monitoring data API for setting ID %d: %v\n", setting.ID, err)
+		fmt.Printf("Error fetching monitoring data API for gedung ID %d: %v\n", gedung.ID, err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("API returned non-200 status code for setting ID %d: %d\n", setting.ID, resp.StatusCode)
+		fmt.Printf("API returned non-200 status code for gedung ID %d: %d\n", gedung.ID, resp.StatusCode)
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Error reading response body for setting ID %d: %v\n", setting.ID, err)
+		fmt.Printf("Error reading response body for gedung ID %d: %v\n", gedung.ID, err)
 		return
 	}
 
@@ -247,7 +248,7 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 	}
 
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
-		fmt.Printf("Error parsing monitoring data for setting ID %d: %v\n", setting.ID, err)
+		fmt.Printf("Error parsing monitoring data for gedung ID %d: %v\n", gedung.ID, err)
 		return
 	}
 
@@ -287,12 +288,12 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 		request := entities.CreateMonitoringDataRequest{
 			MonitoringName:  key,
 			MonitoringValue: valueStr,
-			IDSetting:       uint(setting.ID), // Tambahkan SettingID ke request
+			IDGedung:        uint(gedung.ID), // Tambahkan GedungID ke request
 		}
 		if !strings.Contains(request.MonitoringValue, "unavailable") {
 			_, err := useCase.SaveMonitoringData(request)
 			if err != nil {
-				fmt.Printf("Error saving monitoring data (%s) for setting ID %d: %v\n", key, setting.ID, err)
+				fmt.Printf("Error saving monitoring data (%s) for gedung ID %d: %v\n", key, gedung.ID, err)
 			}
 		}
 	}
@@ -300,7 +301,7 @@ func runJob(useCase usecases.MonitoringDataUseCase, setting entities.Setting) {
 	// Update status monitoring di memory
 	monitoringStatusMap.Store(namaGedung, currentStatus)
 
-	fmt.Printf("Monitoring data saved for setting ID %d (%s) at: %s\n", setting.ID, namaGedung, time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Monitoring data saved for gedung ID %d (%s) at: %s\n", gedung.ID, namaGedung, time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Printf("Status monitoring %s - Air: %s, Listrik: %s\n", namaGedung, currentStatus.MonitoringAir, currentStatus.MonitoringListrik)
 }
 

@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
+
+	"gorm.io/gorm"
 )
 
 type SettingRepositoryImpl struct {
@@ -45,8 +46,8 @@ func (r *SettingRepositoryImpl) FindByUserId(userID uint) ([]entities.Setting, e
 	var settingList []entities.Setting
 
 	err := r.db.
-		Joins("JOIN pengelola_gedung pg ON setting.id = pg.setting_id").
-		Joins("JOIN user u ON u.id = pg.user_id").
+		Joins("JOIN hak_akses ha ON setting.id = ha.setting_id").
+		Joins("JOIN user u ON u.id = ha.user_id").
 		Where("u.id = ?", userID).
 		Find(&settingList).Error
 

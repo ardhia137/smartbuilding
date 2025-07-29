@@ -2,25 +2,26 @@ package services
 
 import (
 	"errors"
-	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
 	"smartbuilding/utils"
+
+	"gorm.io/gorm"
 )
 
 type SettingServiceImpl struct {
-	haosRepo      repositories.SettingRepository
-	dataTorenRepo repositories.DataTorenRepository
+	haosRepo   repositories.SettingRepository
+	torentRepo repositories.TorentRepository
 }
 
-func NewSettingService(haosRepo repositories.SettingRepository, dataTorenRepo repositories.DataTorenRepository) services.SettingService {
-	return &SettingServiceImpl{haosRepo: haosRepo, dataTorenRepo: dataTorenRepo}
+func NewSettingService(haosRepo repositories.SettingRepository, torentRepo repositories.TorentRepository) services.SettingService {
+	return &SettingServiceImpl{haosRepo: haosRepo, torentRepo: torentRepo}
 }
 
 func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest) (*entities.SettingResponseCreate, error) {
 	var createdSetting entities.Setting
-	var createdDataToren []entities.DataToren
+	var createdTorent []entities.Torent
 
 	db := s.haosRepo.WithTransaction()
 
@@ -38,18 +39,18 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 		}
 		createdSetting = haos
 
-		var dataTorenList []entities.DataToren
+		var torentList []entities.Torent
 		for _, toren := range request.DataToren {
-			dataTorenList = append(dataTorenList, entities.DataToren{
+			torentList = append(torentList, entities.Torent{
 				MonitoringName: toren.MonitoringName,
 				KapasitasToren: toren.KapasitasToren,
 				IDSetting:      haos.ID,
 			})
 		}
-		if err := tx.Create(&dataTorenList).Error; err != nil {
+		if err := tx.Create(&torentList).Error; err != nil {
 			return err
 		}
-		createdDataToren = dataTorenList
+		createdTorent = torentList
 		return nil
 	})
 
@@ -65,7 +66,7 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 		Scheduler:    createdSetting.Scheduler,
 		HargaListrik: createdSetting.HargaListrik,
 		JenisListrik: createdSetting.JenisListrik,
-		DataToren:    createdDataToren,
+		DataToren:    createdTorent,
 	}
 
 	return &response, nil

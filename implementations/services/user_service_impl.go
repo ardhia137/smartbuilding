@@ -3,21 +3,22 @@ package services
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
 	"smartbuilding/utils"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type userServiceImpl struct {
-	userRepository      repositories.UserRepository
-	pengelolaGedungRepo repositories.PengelolaGedungRepository
+	userRepository repositories.UserRepository
+	hakAksesRepo   repositories.HakAksesRepository
 }
 
-func NewUserService(userRepo repositories.UserRepository, pengelolaGedung repositories.PengelolaGedungRepository) services.UserService {
-	return &userServiceImpl{userRepo, pengelolaGedung}
+func NewUserService(userRepo repositories.UserRepository, hakAkses repositories.HakAksesRepository) services.UserService {
+	return &userServiceImpl{userRepo, hakAkses}
 }
 
 func (s *userServiceImpl) GetAllUsers(role string, user_id uint) ([]entities.UserResponse, error) {
@@ -54,9 +55,9 @@ func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (e
 		return entities.UserResponse{}, utils.ErrInternal
 	}
 
-	// Validasi jika role bukan "admin" tapi PengelolaGedung kosong
-	if request.Role != "admin" && len(request.PengelolaGedung) == 0 {
-		return entities.UserResponse{}, errors.New("pengelola gedung tidak boleh kosong untuk role ini")
+	// Validasi jika role bukan "admin" tapi HakAkses kosong
+	if request.Role != "admin" && len(request.HakAkses) == 0 {
+		return entities.UserResponse{}, errors.New("hak akses tidak boleh kosong untuk role ini")
 	}
 
 	db := s.userRepository.WithTransaction()
@@ -74,20 +75,20 @@ func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (e
 		}
 
 		createdUser = user
-		fmt.Println(request.PengelolaGedung)
+		fmt.Println(request.HakAkses)
 
-		// Jika role bukan admin, proses PengelolaGedung
+		// Jika role bukan admin, proses HakAkses
 		if request.Role != "admin" {
-			var pengelolaGedungList []entities.PengelolaGedung
-			for _, pengelolaGedung := range request.PengelolaGedung {
-				pengelolaGedungList = append(pengelolaGedungList, entities.PengelolaGedung{
-					UserId:    int(user.ID), // Gunakan ID yang baru dibuat
-					SettingID: pengelolaGedung.SettingID,
+			var hakAksesList []entities.HakAkses
+			for _, hakAkses := range request.HakAkses {
+				hakAksesList = append(hakAksesList, entities.HakAkses{
+					UserId:   int(user.ID), // Gunakan ID yang baru dibuat
+					GedungID: hakAkses.GedungID,
 				})
 			}
-			fmt.Println(request.PengelolaGedung)
-			if len(pengelolaGedungList) > 0 {
-				if err := tx.Create(&pengelolaGedungList).Error; err != nil {
+			fmt.Println(request.HakAkses)
+			if len(hakAksesList) > 0 {
+				if err := tx.Create(&hakAksesList).Error; err != nil {
 					return err
 				}
 			}
@@ -110,18 +111,18 @@ func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (e
 
 func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateUserRequest) (entities.UserResponse, error) {
 	// Hash password
-	pengelolaGedung, err := s.pengelolaGedungRepo.FindByUser(int(id))
+	hakAkses, err := s.hakAksesRepo.FindByUser(int(id))
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return entities.UserResponse{}, utils.ErrInternal
 	}
 
-	// Validasi jika role bukan "admin" tapi PengelolaGedung kosong
-	if request.Role == "pengelola" && len(request.PengelolaGedung) > 1 {
+	// Validasi jika role bukan "admin" tapi HakAkses kosong
+	if request.Role == "pengelola" && len(request.HakAkses) > 1 {
 		return entities.UserResponse{}, errors.New("Role Ini Hanya Boleh Mengelola 1 Gedung")
-	} else if request.Role == "pengelola" && len(request.PengelolaGedung) == 0 {
-		return entities.UserResponse{}, errors.New("pengelola gedung tidak boleh kosong untuk role ini")
+	} else if request.Role == "pengelola" && len(request.HakAkses) == 0 {
+		return entities.UserResponse{}, errors.New("hak akses tidak boleh kosong untuk role ini")
 	}
 
 	db := s.userRepository.WithTransaction()
@@ -142,28 +143,28 @@ func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateU
 
 		if request.Role == "manajement" {
 
-			var pengelolaGedungList []entities.PengelolaGedung
-			for _, pengelolaGedung := range pengelolaGedung {
-				pengelolaGedungList = append(pengelolaGedungList, entities.PengelolaGedung{
-					UserId:    int(user.ID), // Gunakan ID yang baru dibuat
-					SettingID: pengelolaGedung.SettingID,
+			var hakAksesList []entities.HakAkses
+			for _, hakAksesItem := range hakAkses {
+				hakAksesList = append(hakAksesList, entities.HakAkses{
+					UserId:   int(user.ID), // Gunakan ID yang baru dibuat
+					GedungID: hakAksesItem.GedungID,
 				})
 			}
 
-			fmt.Println(request.PengelolaGedung)
+			fmt.Println(request.HakAkses)
 
-			if len(pengelolaGedungList) > 0 {
-				if err := tx.Create(&pengelolaGedungList).Error; err != nil {
+			if len(hakAksesList) > 0 {
+				if err := tx.Create(&hakAksesList).Error; err != nil {
 					return err
 				}
 			}
 
 		} else if request.Role == "pengelola" {
-			pengelola := entities.PengelolaGedung{
-				UserId:    int(user.ID),
-				SettingID: request.PengelolaGedung[0].SettingID,
+			hakAkses := entities.HakAkses{
+				UserId:   int(user.ID),
+				GedungID: request.HakAkses[0].GedungID,
 			}
-			if err := tx.Create(&pengelola).Error; err != nil {
+			if err := tx.Create(&hakAkses).Error; err != nil {
 				return err
 			}
 		} else {

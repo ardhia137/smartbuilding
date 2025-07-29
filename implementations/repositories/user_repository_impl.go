@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"gorm.io/gorm"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
+
+	"gorm.io/gorm"
 )
 
 type userRepositoryImpl struct {
@@ -25,14 +26,14 @@ func (r *userRepositoryImpl) FindAll(role string, user_id uint) ([]entities.User
 		return users, err
 	} else {
 		subQuery := r.db.
-			Table("pengelola_gedung").
+			Table("hak_akses").
 			Select("setting_id").
 			Where("user_id = ?", user_id)
 
 		err := r.db.
 			Table("user").
-			Joins("JOIN pengelola_gedung pg ON pg.user_id = user.id").
-			Where("pg.setting_id IN (?)", subQuery).
+			Joins("JOIN hak_akses ha ON ha.user_id = user.id").
+			Where("ha.setting_id IN (?)", subQuery).
 			Find(&users).Error
 		return users, err
 	}

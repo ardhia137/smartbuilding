@@ -1,9 +1,10 @@
 package infrastructure
 
 import (
-	"github.com/gin-gonic/gin"
 	"smartbuilding/controllers"
 	"smartbuilding/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 func RegisterUserRoutes(router *gin.Engine, userController *controllers.UserController) {
@@ -48,30 +49,44 @@ func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *
 	}
 }
 
-func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.SettingController) {
+func RegisterGedungRoutes(router *gin.Engine, gedungController *controllers.GedungController) {
 	apiGroup := router.Group("/api")
-	settingRoutes := apiGroup.Group("/setting")
-	settingRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
+	gedungRoutes := apiGroup.Group("/gedung")
+	gedungRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	{
-		settingRoutes.GET("", settingController.GetAllSetting)
-		settingRoutes.POST("", settingController.CreateSetting)
-		settingRoutes.GET("/:id", settingController.GetSettingByID)
-		settingRoutes.PUT("/:id", settingController.UpdateSetting)
-		settingRoutes.DELETE("/:id", settingController.DeleteSetting)
+		gedungRoutes.GET("", gedungController.GetAllGedung)
+		gedungRoutes.POST("", gedungController.CreateGedung)
+		gedungRoutes.GET("/:id", gedungController.GetGedungByID)
+		gedungRoutes.PUT("/:id", gedungController.UpdateGedung)
+		gedungRoutes.DELETE("/:id", gedungController.DeleteGedung)
 	}
 }
 
-func RegisterPengelolaGedungRoutes(router *gin.Engine, pengelolaGedungController *controllers.PengelolaGedungController) {
+func RegisterTorentRoutes(router *gin.Engine, torentController *controllers.TorentController) {
 	apiGroup := router.Group("/api")
-	pengelolaGedungRoutes := apiGroup.Group("/pengelola_gedung")
-	pengelolaGedungRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	torentRoutes := apiGroup.Group("/torent")
+	torentRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	{
-		pengelolaGedungRoutes.GET("", pengelolaGedungController.GetAllPengelolaGedung)
-		pengelolaGedungRoutes.POST("", pengelolaGedungController.CreatePengelolaGedung)
-		pengelolaGedungRoutes.GET("/:id", pengelolaGedungController.GetPengelolaGedungBySettingID)
-		//pengelolaGedungRoutes.GET("/setting/:id", pengelolaGedungController.GetPengelolaGedungBySettingID)
-		pengelolaGedungRoutes.PUT("/:id", pengelolaGedungController.UpdatePengelolaGedung)
-		pengelolaGedungRoutes.DELETE("/:id", pengelolaGedungController.DeletePengelolaGedung)
+		torentRoutes.GET("", torentController.GetAllTorent)
+		torentRoutes.POST("", torentController.CreateTorent)
+		torentRoutes.GET("/:id", torentController.GetTorentByID)
+		torentRoutes.GET("/gedung/:id", torentController.GetTorentByGedungID)
+		torentRoutes.PUT("/:id", torentController.UpdateTorent)
+		torentRoutes.DELETE("/:id", torentController.DeleteTorent)
+	}
+}
+
+func RegisterHakAksesRoutes(router *gin.Engine, hakAksesController *controllers.HakAksesController) {
+	apiGroup := router.Group("/api")
+	hakAksesRoutes := apiGroup.Group("/hak_akses")
+	hakAksesRoutes.Use(utils.RoleMiddleware("admin", "manajement"), utils.UserIDMiddleware())
+	{
+		hakAksesRoutes.GET("", hakAksesController.GetAllHakAkses)
+		hakAksesRoutes.POST("", hakAksesController.CreateHakAkses)
+		hakAksesRoutes.GET("/:id", hakAksesController.GetHakAksesByID)
+		hakAksesRoutes.GET("/gedung/:id", hakAksesController.GetHakAksesByGedungID)
+		hakAksesRoutes.PUT("/:id", hakAksesController.UpdateHakAkses)
+		hakAksesRoutes.DELETE("/:id", hakAksesController.DeleteHakAkses)
 
 	}
 }

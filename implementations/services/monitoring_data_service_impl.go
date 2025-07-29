@@ -13,16 +13,16 @@ import (
 
 type monitoringDataServiceImpl struct {
 	monitoringDataRepository repositories.MonitoringDataRepository
-	dataTorenRepository      repositories.DataTorenRepository
-	settingRepository        repositories.SettingRepository
+	torentRepository         repositories.TorentRepository
+	gedungRepository         repositories.GedungRepository
 }
 
 func NewMonitoringDataService(monitorRepo repositories.MonitoringDataRepository,
 
-	dataToren repositories.DataTorenRepository,
-	settingRepo repositories.SettingRepository,
+	torent repositories.TorentRepository,
+	gedungRepo repositories.GedungRepository,
 ) services.MonitoringDataService {
-	return &monitoringDataServiceImpl{monitorRepo, dataToren, settingRepo}
+	return &monitoringDataServiceImpl{monitorRepo, torent, gedungRepo}
 
 }
 
@@ -30,7 +30,7 @@ func (s *monitoringDataServiceImpl) SaveMonitoringData(request entities.CreateMo
 	monitoringData := entities.MonitoringData{
 		MonitoringName:  request.MonitoringName,
 		MonitoringValue: request.MonitoringValue,
-		IDSetting:       request.IDSetting,
+		IDGedung:        request.IDGedung,
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
@@ -58,7 +58,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 		return nil, err
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
-	torenData, err := s.dataTorenRepository.FindBySettingID(id)
+	torenData, err := s.torentRepository.FindByGedungID(id)
 	if err != nil {
 		return nil, err
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
@@ -69,13 +69,13 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
-	settingRepo, err := s.settingRepository.FindByID(id)
+	gedungRepo, err := s.gedungRepository.FindByID(id)
 	if err != nil {
 		return nil, err
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
-	namaGedung := settingRepo.NamaGedung
+	namaGedung := gedungRepo.NamaGedung
 
 	var totalAirKeluar, totalAirMasuk float64
 	var createdAt, updatedAt time.Time
@@ -127,7 +127,7 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 
 	kapasitasTorenMap := make(map[string]entities.KapasitasTorenData)
 	// Simpan data toren berdasarkan nama
-	torenDataMap := make(map[string]entities.DataToren)
+	torenDataMap := make(map[string]entities.Torent)
 	for _, toren := range torenData {
 		torenDataMap[toren.MonitoringName] = toren
 		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
@@ -340,14 +340,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		return entities.GetListrikDataResponse{}, err
 	}
 
-	setting, err := s.settingRepository.FindByID(id)
+	gedung, err := s.gedungRepository.FindByID(id)
 	if err != nil {
 		return entities.GetListrikDataResponse{}, err
 	}
-	namaGedung := setting.NamaGedung
-	jenisListrik := setting.JenisListrik
-	var schadule = float64(setting.Scheduler)
-	var tarifListrik = float64(setting.HargaListrik)
+	namaGedung := gedung.NamaGedung
+	jenisListrik := gedung.JenisListrik
+	var schadule = float64(gedung.Scheduler)
+	var tarifListrik = float64(gedung.HargaListrik)
 	var createdAt, updatedAt time.Time
 	var totalWatt float64
 	var totalArus float64

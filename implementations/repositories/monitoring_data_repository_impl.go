@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"gorm.io/gorm"
 	"smartbuilding/entities"
+
+	"gorm.io/gorm"
 )
 
 type MonitoringDataRepositoryImpl struct {
@@ -22,7 +23,7 @@ func (r *MonitoringDataRepositoryImpl) SaveMonitoringData(monitoringData entitie
 
 func (r *MonitoringDataRepositoryImpl) GetAirMonitoringData(id int) ([]entities.MonitoringData, error) {
 	var monitoringData []entities.MonitoringData
-	if err := r.db.Where("monitoring_name LIKE ?", "monitoring_air%").Where("id_setting = ?", id).Find(&monitoringData).Error; err != nil {
+	if err := r.db.Where("monitoring_name LIKE ?", "monitoring_air%").Where("id_gedung = ?", id).Find(&monitoringData).Error; err != nil {
 		return nil, err
 	}
 	return monitoringData, nil
@@ -30,7 +31,7 @@ func (r *MonitoringDataRepositoryImpl) GetAirMonitoringData(id int) ([]entities.
 
 func (r *MonitoringDataRepositoryImpl) GetAirMonitoringDataHarian(id int) ([]entities.MonitoringData, error) {
 	var monitoringDataHarian []entities.MonitoringData
-	if err := r.db.Table("monitoring_data_harian").Where("monitoring_name LIKE ?", "monitoring_air%").Where("id_setting = ?", id).Find(&monitoringDataHarian).Error; err != nil {
+	if err := r.db.Table("monitoring_data_harian").Where("monitoring_name LIKE ?", "monitoring_air%").Where("id_gedung = ?", id).Find(&monitoringDataHarian).Error; err != nil {
 		return nil, err
 	}
 	return monitoringDataHarian, nil
@@ -38,7 +39,7 @@ func (r *MonitoringDataRepositoryImpl) GetAirMonitoringDataHarian(id int) ([]ent
 
 func (r *MonitoringDataRepositoryImpl) GetListrikMonitoringData(id int) ([]entities.MonitoringData, error) {
 	var monitoringData []entities.MonitoringData
-	if err := r.db.Where("monitoring_name LIKE ?", "monitoring_listrik_%").Where("id_setting = ?", id).Find(&monitoringData).Error; err != nil {
+	if err := r.db.Where("monitoring_name LIKE ?", "monitoring_listrik_%").Where("id_gedung = ?", id).Find(&monitoringData).Error; err != nil {
 		return nil, err
 	}
 	return monitoringData, nil
@@ -46,7 +47,7 @@ func (r *MonitoringDataRepositoryImpl) GetListrikMonitoringData(id int) ([]entit
 
 func (r *MonitoringDataRepositoryImpl) GetListrikMonitoringDataHarian(id int) ([]entities.MonitoringData, error) {
 	var monitoringDataHarian []entities.MonitoringData
-	if err := r.db.Table("monitoring_data_harian").Where("monitoring_name LIKE ?", "monitoring_listrik_%").Where("id_setting = ?", id).Find(&monitoringDataHarian).Error; err != nil {
+	if err := r.db.Table("monitoring_data_harian").Where("monitoring_name LIKE ?", "monitoring_listrik_%").Where("id_gedung = ?", id).Find(&monitoringDataHarian).Error; err != nil {
 		return nil, err
 	}
 	return monitoringDataHarian, nil
@@ -62,7 +63,7 @@ func (r *MonitoringDataRepositoryImpl) FindAll() ([]entities.MonitoringData, err
 
 func (r *MonitoringDataRepositoryImpl) FindBySettingID(id int) ([]entities.MonitoringData, error) {
 	var data []entities.MonitoringData
-	if err := r.db.Find(&data).Where("id_setting = ?", id).Error; err != nil {
+	if err := r.db.Find(&data).Where("id_gedung = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return data, nil

@@ -2,11 +2,10 @@ package config
 
 import (
 	"fmt"
-	"log"
-	"os"
-
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -32,4 +31,5 @@ func InitDB() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	log.Println("Database connection established successfully")
+
 }

@@ -3,7 +3,6 @@ package services
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"smartbuilding/entities"
 	"smartbuilding/interfaces/repositories"
 	"smartbuilding/interfaces/services"
@@ -12,19 +11,21 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type authServiceImpl struct {
 	authRepo          repositories.AuthRepository
-	settingRepo       repositories.SettingRepository
+	gedungRepo        repositories.GedungRepository
 	blacklistedTokens map[string]time.Time
 	blacklistMutex    sync.RWMutex
 }
 
-func NewAuthService(authRepo repositories.AuthRepository, settingRepo repositories.SettingRepository) services.AuthService {
+func NewAuthService(authRepo repositories.AuthRepository, gedungRepo repositories.GedungRepository) services.AuthService {
 	service := &authServiceImpl{
 		authRepo:          authRepo,
-		settingRepo:       settingRepo,
+		gedungRepo:        gedungRepo,
 		blacklistedTokens: make(map[string]time.Time),
 	}
 
@@ -57,21 +58,21 @@ func (s *authServiceImpl) Login(email, password string) (entities.LoginResponse,
 		return entities.LoginResponse{}, errors.New("failed to generate token")
 	}
 
-	var setting []entities.Setting
+	var gedung []entities.Gedung
 	if user.Role == "admin" {
-		setting, err = s.settingRepo.FindAll()
+		gedung, err = s.gedungRepo.FindAll()
 	} else {
-		setting, err = s.settingRepo.FindByUserId(user.ID)
+		gedung, err = s.gedungRepo.FindByUserId(user.ID)
 	}
 	if err != nil {
-		return entities.LoginResponse{}, errors.New("setting not found")
+		return entities.LoginResponse{}, errors.New("gedung not found")
 	}
 
 	return entities.LoginResponse{
-		Token:   token,
-		Role:    user.Role,
-		UserId:  strconv.FormatUint(uint64(user.ID), 10),
-		Setting: setting,
+		Token:  token,
+		Role:   user.Role,
+		UserId: strconv.FormatUint(uint64(user.ID), 10),
+		Gedung: gedung,
 	}, nil
 }
 

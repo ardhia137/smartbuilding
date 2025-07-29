@@ -1,20 +1,21 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"smartbuilding/entities"
 	"smartbuilding/usecases"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type MonitoringDataController struct {
-	useCase     usecases.MonitoringDataUseCase
-	pengelolauc usecases.PengelolaGedungUseCase
+	useCase    usecases.MonitoringDataUseCase
+	hakAksesUc usecases.HakAksesUseCase
 }
 
-func NewMonitoringDataController(useCase usecases.MonitoringDataUseCase, pengelolauc usecases.PengelolaGedungUseCase) *MonitoringDataController {
-	return &MonitoringDataController{useCase, pengelolauc}
+func NewMonitoringDataController(useCase usecases.MonitoringDataUseCase, hakAksesUc usecases.HakAksesUseCase) *MonitoringDataController {
+	return &MonitoringDataController{useCase, hakAksesUc}
 }
 
 func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
@@ -62,14 +63,14 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 	}
 
 	// Cek apakah user memiliki akses ke setting_id
-	pengelolaGedungList, err := c.pengelolauc.GetPengelolaGedungBySettingIDUser(id, int(userID))
+	hakAksesList, err := c.hakAksesUc.GetHakAksesByGedungIDUser(id, int(userID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Jika tidak ditemukan pengelola gedung dengan setting_id dan user_id yang cocok, tolak akses
-	if len(pengelolaGedungList) == 0 {
+	// Jika tidak ditemukan hak akses dengan setting_id dan user_id yang cocok, tolak akses
+	if len(hakAksesList) == 0 {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -117,14 +118,14 @@ func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
 	}
 
 	// Cek apakah user memiliki akses ke setting_id
-	pengelolaGedungList, err := c.pengelolauc.GetPengelolaGedungBySettingIDUser(id, int(userID))
+	hakAksesList, err := c.hakAksesUc.GetHakAksesByGedungIDUser(id, int(userID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Jika tidak ditemukan pengelola gedung dengan setting_id dan user_id yang cocok, tolak akses
-	if len(pengelolaGedungList) == 0 {
+	// Jika tidak ditemukan hak akses dengan setting_id dan user_id yang cocok, tolak akses
+	if len(hakAksesList) == 0 {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
