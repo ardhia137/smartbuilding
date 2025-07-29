@@ -57,17 +57,6 @@ func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	})
 }
 
-// @Summary Mendapatkan pengguna berdasarkan ID
-// @Description Mendapatkan detail pengguna berdasarkan ID
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Security ApiKeyAuth
-// @Success 200 {object} map[string]interface{} "Berhasil mendapatkan detail pengguna"
-// @Failure 400 {object} map[string]interface{} "Invalid ID format"
-// @Failure 404 {object} map[string]interface{} "User not found"
-// @Router /users/{id} [get]
 func (c *UserController) GetUserByID(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -93,17 +82,6 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 	})
 }
 
-// @Summary Membuat pengguna baru
-// @Description Membuat pengguna baru berdasarkan data yang diberikan
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param user body entities.CreateUserRequest true "Data pengguna baru"
-// @Security ApiKeyAuth
-// @Success 201 {object} map[string]interface{} "Berhasil membuat pengguna baru"
-// @Failure 400 {object} map[string]interface{} "Invalid input data"
-// @Failure 500 {object} map[string]interface{} "Internal Server Error"
-// @Router /users [post]
 func (c *UserController) CreateUser(ctx *gin.Context) {
 	var request entities.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -153,18 +131,6 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 	})
 }
 
-// @Summary Memperbarui pengguna
-// @Description Memperbarui data pengguna berdasarkan ID
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Param user body entities.CreateUserRequest true "Data pengguna yang diperbarui"
-// @Security ApiKeyAuth
-// @Success 200 {object} map[string]interface{} "Berhasil memperbarui pengguna"
-// @Failure 400 {object} map[string]interface{} "Invalid input data"
-// @Failure 500 {object} map[string]interface{} "Internal Server Error"
-// @Router /users/{id} [put]
 func (c *UserController) UpdateUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -199,17 +165,6 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 	})
 }
 
-// @Summary Menghapus pengguna
-// @Description Menghapus pengguna berdasarkan ID
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Security ApiKeyAuth
-// @Success 200 {object} map[string]interface{} "Berhasil menghapus pengguna"
-// @Failure 400 {object} map[string]interface{} "Invalid ID format"
-// @Failure 500 {object} map[string]interface{} "Internal Server Error"
-// @Router /users/{id} [delete]
 func (c *UserController) DeleteUser(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
@@ -246,7 +201,6 @@ func (c *UserController) GetMe(ctx *gin.Context) {
 		return
 	}
 
-	// Handle different types of user_id from context
 	var userID uint
 	if userIDFloat, ok := userIDInterface.(float64); ok {
 		userID = uint(userIDFloat)

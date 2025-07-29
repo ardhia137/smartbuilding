@@ -57,7 +57,6 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 		return nil, err
 	}
 
-	// **Buat response**
 	response := entities.SettingResponseCreate{
 		ID:           createdSetting.ID,
 		NamaGedung:   createdSetting.NamaGedung,
@@ -66,7 +65,7 @@ func (s *SettingServiceImpl) CreateSetting(request entities.CreateSettingRequest
 		Scheduler:    createdSetting.Scheduler,
 		HargaListrik: createdSetting.HargaListrik,
 		JenisListrik: createdSetting.JenisListrik,
-		DataToren:    createdDataToren, // Pastikan struct ini ada
+		DataToren:    createdDataToren,
 	}
 
 	return &response, nil

@@ -7,18 +7,15 @@ import (
 	"sync"
 )
 
-// Global variable untuk menyimpan blacklist (sementara, bisa diganti dengan Redis/database)
 var blacklistedTokens = make(map[string]bool)
 var blacklistMutex sync.RWMutex
 
-// AddToBlacklist menambahkan token ke blacklist
 func AddToBlacklist(token string) {
 	blacklistMutex.Lock()
 	defer blacklistMutex.Unlock()
 	blacklistedTokens[token] = true
 }
 
-// IsTokenBlacklisted mengecek apakah token ada di blacklist
 func IsTokenBlacklisted(token string) bool {
 	blacklistMutex.RLock()
 	defer blacklistMutex.RUnlock()
@@ -159,7 +156,6 @@ func UserIDMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Simpan user_id ke context
 		ctx.Set("user_id", claims.UserID)
 
 		ctx.Next()

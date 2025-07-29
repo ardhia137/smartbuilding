@@ -24,11 +24,11 @@ type MonitoringStatus struct {
 
 var (
 	c                   *cron.Cron
-	cronJobIDs          map[int]cron.EntryID // Menyimpan ID cron job untuk setiap setting
-	lastSchedulers      map[int]int          // Menyimpan last scheduler untuk setiap setting
+	cronJobIDs          map[int]cron.EntryID
+	lastSchedulers      map[int]int
 	lastHaosURL         map[int]string
 	lastHaosToken       map[int]string
-	monitoringStatusMap sync.Map // Menyimpan status monitoring per gedung
+	monitoringStatusMap sync.Map
 )
 
 func init() {
@@ -51,7 +51,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, settingUseCa
 	for _, setting := range settings {
 		cronExpression := fmt.Sprintf("@every %ds", setting.Scheduler)
 		cronJobID, err := c.AddFunc(cronExpression, func() {
-			// Konversi SettingResponse ke Setting
+
 			settingEntity := entities.Setting{
 				ID:           setting.ID,
 				NamaGedung:   setting.NamaGedung,
@@ -98,7 +98,6 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 		return
 	}
 
-	// Buat map untuk menyimpan data per IDSetting
 	settingDataMap := make(map[uint]map[string][]float64)
 
 	for _, data := range monitoringData {
@@ -109,7 +108,6 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 			continue
 		}
 
-		// Buat entri baru di map jika belum ada
 		if _, ok := settingDataMap[data.IDSetting]; !ok {
 			settingDataMap[data.IDSetting] = make(map[string][]float64)
 		}
@@ -118,18 +116,15 @@ func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, setti
 		settingDataMap[data.IDSetting][data.MonitoringName] = append(settingDataMap[data.IDSetting][data.MonitoringName], value)
 	}
 
-	// Looping setiap IDSetting
 	for idSetting, monitoringMap := range settingDataMap {
 		for monitoringName, values := range monitoringMap {
 			total := 0.0
 
 			if strings.HasPrefix(monitoringName, "monitoring_air_total_water_flow_") {
-				// Gunakan nilai terakhir jika ada
 				if len(values) > 0 {
 					total = values[len(values)-1]
 				}
 			} else {
-				// Hitung total dari semua nilai
 				for _, val := range values {
 					total += val
 				}

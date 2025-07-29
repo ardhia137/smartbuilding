@@ -13,6 +13,7 @@ import (
 
 var DB *gorm.DB
 
+// inisialisai database
 func InitDB() {
 	err := godotenv.Load()
 	if err != nil {

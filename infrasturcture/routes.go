@@ -61,22 +61,6 @@ func RegisterSettingRoutes(router *gin.Engine, settingController *controllers.Se
 	}
 }
 
-//
-//func RegisterDataTorenRoutes(router *gin.Engine, dataTorenController *controllers.DataTorenController) {
-//	apiGroup := router.Group("/api")
-//	dataTorenRoutes := apiGroup.Group("/data_toren")
-//	dataTorenRoutes.Use(utils.RoleMiddleware("admin", "manajement"))
-//	{
-//		dataTorenRoutes.GET("", dataTorenController.GetAllDataToren)
-//		dataTorenRoutes.POST("", dataTorenController.CreateDataToren)
-//		dataTorenRoutes.GET("/:id", dataTorenController.GetDataTorenByID)
-//		dataTorenRoutes.GET("/setting/:id", dataTorenController.GetDataTorenBySettingID)
-//		dataTorenRoutes.PUT("/:id", dataTorenController.UpdateDataToren)
-//		dataTorenRoutes.DELETE("/:id", dataTorenController.DeleteDataToren)
-//
-//	}
-//}
-
 func RegisterPengelolaGedungRoutes(router *gin.Engine, pengelolaGedungController *controllers.PengelolaGedungController) {
 	apiGroup := router.Group("/api")
 	pengelolaGedungRoutes := apiGroup.Group("/pengelola_gedung")

@@ -301,36 +301,29 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 		DataPenggunaanTahunan:  make(map[string][]entities.PenggunaanAir),
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	for minggu, data := range dataPenggunaanMingguan {
-		// Sort ascending berdasarkan nama pipa
 		sort.Slice(data, func(i, j int) bool {
 			return data[i].Pipa < data[j].Pipa
 		})
 		response.DataPenggunaanMingguan[minggu] = data
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	for bulan, data := range dataPenggunaanBulanan {
-		// Sort ascending berdasarkan nama pipa
 		sortedData := convertMingguanTahunan(data)
 		sort.Slice(sortedData, func(i, j int) bool {
 			return sortedData[i].Pipa < sortedData[j].Pipa
 		})
 		response.DataPenggunaanBulanan[bulan] = sortedData
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	for tahun, data := range dataPenggunaanTahunan {
-		// Sort ascending berdasarkan nama pipa
 		sortedData := convertMingguanTahunan(data)
 		sort.Slice(sortedData, func(i, j int) bool {
 			return sortedData[i].Pipa < sortedData[j].Pipa
 		})
 		response.DataPenggunaanTahunan[tahun] = sortedData
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	return []entities.GetAirDataResponse{response}, nil
@@ -360,7 +353,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	var totalArus float64
 	var jumlahData int
 
-	// Ubah struktur data untuk mengikuti pola air
 	dataPenggunaanHarian := make(map[string][]entities.PenggunaanListrik) // Per jam
 	dataBiayaHarian := make(map[string][]entities.BiayaListrik)           // Per jam
 
@@ -380,9 +372,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	totalArusPerName := make(map[string]float64)
 	jumlahDataPerName := make(map[string]int)
 
-	// --- Proses data real-time untuk jam ini ---
 	today := time.Now().Format("2006-01-02")
-	jamArusValue := make(map[string]map[string]float64) // jam -> monitoring_name -> arus
+	jamArusValue := make(map[string]map[string]float64)
 
 	for i, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
@@ -395,7 +386,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			jumlahDataPerName[data.MonitoringName]++
 		}
 
-		// Proses data per jam untuk hari ini
 		if strings.Contains(data.MonitoringName, "arus_listrik") && data.CreatedAt.Format("2006-01-02") == today {
 			hour := data.CreatedAt.Hour()
 			jamStr := fmt.Sprintf("%02d:00", hour)
@@ -414,7 +404,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		}
 	}
 
-	// Build DataPenggunaanListrikHarian per jam (seperti air)
 	for jamStr, arusMap := range jamArusValue {
 		penggunaanList := make([]entities.PenggunaanListrik, 0, len(arusMap))
 		biayaList := make([]entities.BiayaListrik, 0, len(arusMap))
@@ -444,7 +433,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			})
 		}
 
-		// Sort ascending berdasarkan nama monitoring
 		sort.Slice(penggunaanList, func(i, j int) bool {
 			return penggunaanList[i].Nama < penggunaanList[j].Nama
 		})
@@ -456,7 +444,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		dataBiayaHarian[jamStr] = biayaList
 	}
 
-	// Hitung totalWatt dan totalDaya
 	if jumlahData > 0 {
 		rataRataArus := totalArus / float64(jumlahData)
 		currentHour := float64(now.Hour())
@@ -470,7 +457,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		} else if jenisListrik == "3_phase" {
 			dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
 		}
-		//fmt.Println(len(dataPenggunaanHarian))
 		energiKWh := dayaKW * float64(len(dataPenggunaanHarian))
 		totalWatt = energiKWh
 	}
@@ -532,24 +518,16 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				kw := 220 * Rarus * 0.8 / 1000
 				kwh = kw * 24
 
-				// Log for monitoring_listrik_arus_listrik_layar_megatron
-
 			} else if jenisListrik == "3_phase" {
 				jumlahSampel := 86400 / schadule
 				Rarus := arus / jumlahSampel
 				kw := 1.732 * 380 * Rarus * 0.8 / 1000
 				kwh = kw * 24
-
-				// Log for monitoring_listrik_arus_listrik_layar_megatron
-				//if harian.MonitoringName == "monitoring_listrik_arus_listrik_layar_megatron" {
-				//	log.Printf("DEBUG - monitoring_listrik_arus_listrik_layar_megatron: arus=%.2f, rarus=%.2f, jumlahSampel=%.2f", arus, kw, len(dataPenggunaanHarian))
-				//}
 			}
 
 			nama := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " ")
 			biaya := kwh * tarifListrik
 
-			// DataPenggunaanListrikMingguan: Per hari dalam seminggu (seperti air)
 			hari := getHariIndonesia(harian.CreatedAt.Weekday())
 			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
 				dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanListrik{
@@ -563,7 +541,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				})
 			}
 
-			// DataPenggunaanListrikBulanan: Per minggu dalam bulan (seperti air)
 			firstOfMonth := time.Date(harian.CreatedAt.Year(), harian.CreatedAt.Month(), 1, 0, 0, 0, 0, harian.CreatedAt.Location())
 			firstDayOffset := int(firstOfMonth.Weekday())
 			if firstDayOffset == 0 {
@@ -590,7 +567,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				dataBiayaBulanan[mingguanKey][nama] += biaya
 			}
 
-			// DataPenggunaanListrikTahunan: Per bulan dalam tahun (seperti air)
 			bulanHarian := getBulanIndonesia(harian.CreatedAt.Month())
 			if harian.CreatedAt.Year() == year {
 				if dataPenggunaanTahunan[bulanHarian] == nil {
@@ -605,7 +581,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		}
 	}
 
-	// Konversi data bulanan dan tahunan ke format slice
 	convertToSliceFromMap := func(data map[string]float64, unit string) []entities.PenggunaanListrik {
 		result := make([]entities.PenggunaanListrik, 0, len(data))
 		for nama, value := range data {
@@ -614,7 +589,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Value: fmt.Sprintf("%.2f %s", value, unit),
 			})
 		}
-		// Sort ascending berdasarkan nama monitoring
 		sort.Slice(result, func(i, j int) bool {
 			return result[i].Nama < result[j].Nama
 		})
@@ -723,8 +697,7 @@ func getHariIndonesia(weekday time.Weekday) string {
 func getStartOfWeek(t time.Time) time.Time {
 	weekday := int(t.Weekday())
 	if weekday == 0 {
-		weekday = 7 // Ubah Minggu jadi 7
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
+		weekday = 7
 	}
 	// Mulai dari jam 00:00
 	return time.Date(t.Year(), t.Month(), t.Day()-(weekday-1), 0, 0, 0, 0, t.Location())

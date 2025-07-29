@@ -73,7 +73,7 @@ func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (e
 			return err
 		}
 
-		createdUser = user // Simpan user yang dibuat
+		createdUser = user
 		fmt.Println(request.PengelolaGedung)
 
 		// Jika role bukan admin, proses PengelolaGedung
@@ -111,9 +111,7 @@ func (s *userServiceImpl) CreateFromAdmin(request entities.CreateUserRequest) (e
 func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateUserRequest) (entities.UserResponse, error) {
 	// Hash password
 	pengelolaGedung, err := s.pengelolaGedungRepo.FindByUser(int(id))
-	//if err != nil {
-	//	return entities.UserResponse{}, utils.ErrInternal
-	//}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return entities.UserResponse{}, utils.ErrInternal
@@ -127,7 +125,7 @@ func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateU
 	}
 
 	db := s.userRepository.WithTransaction()
-	var createdUser entities.User // Deklarasi di luar transaksi
+	var createdUser entities.User
 
 	err = db.Transaction(func(tx *gorm.DB) error {
 		user := entities.User{
@@ -142,7 +140,6 @@ func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateU
 
 		createdUser = user // Simpan user yang dibuat
 
-		//Jika role bukan manajement, proses PengelolaGedung
 		if request.Role == "manajement" {
 
 			var pengelolaGedungList []entities.PengelolaGedung
@@ -153,9 +150,9 @@ func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateU
 				})
 			}
 
-			fmt.Println(request.PengelolaGedung) // Debugging, jika masih diperlukan
+			fmt.Println(request.PengelolaGedung)
 
-			if len(pengelolaGedungList) > 0 { // Gunakan pengelolaGedungList, bukan pengelolaGedung
+			if len(pengelolaGedungList) > 0 {
 				if err := tx.Create(&pengelolaGedungList).Error; err != nil {
 					return err
 				}
@@ -163,7 +160,7 @@ func (s *userServiceImpl) CreateFromManajement(id uint, request entities.CreateU
 
 		} else if request.Role == "pengelola" {
 			pengelola := entities.PengelolaGedung{
-				UserId:    int(user.ID), // Gunakan ID yang baru dibuat
+				UserId:    int(user.ID),
 				SettingID: request.PengelolaGedung[0].SettingID,
 			}
 			if err := tx.Create(&pengelola).Error; err != nil {
