@@ -9,23 +9,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type MonitoringDataController struct {
-	useCase    usecases.MonitoringDataUseCase
+type MonitoringLogController struct {
+	useCase    usecases.MonitoringLogUseCase
 	hakAksesUc usecases.HakAksesUseCase
 }
 
-func NewMonitoringDataController(useCase usecases.MonitoringDataUseCase, hakAksesUc usecases.HakAksesUseCase) *MonitoringDataController {
-	return &MonitoringDataController{useCase, hakAksesUc}
+func NewMonitoringLogController(useCase usecases.MonitoringLogUseCase, hakAksesUc usecases.HakAksesUseCase) *MonitoringLogController {
+	return &MonitoringLogController{useCase, hakAksesUc}
 }
 
-func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
+func (c *MonitoringLogController) SaveMonitoringLog(ctx *gin.Context) {
 	var requestData entities.CreateMonitoringDataRequest
 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	response, err := c.useCase.SaveMonitoringData(requestData)
+	response, err := c.useCase.SaveMonitoringLog(requestData)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -34,7 +34,7 @@ func (c *MonitoringDataController) SaveMonitoringData(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, response)
 }
 
-func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
+func (c *MonitoringLogController) GetAirMonitoringData(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *MonitoringDataController) GetAirMonitoringData(ctx *gin.Context) {
 	})
 }
 
-func (c *MonitoringDataController) GetListrikMonitoringData(ctx *gin.Context) {
+func (c *MonitoringLogController) GetListrikMonitoringData(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {

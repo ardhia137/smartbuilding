@@ -11,33 +11,29 @@ import (
 	"time"
 )
 
-type monitoringDataServiceImpl struct {
-	monitoringDataRepository repositories.MonitoringDataRepository
-	torentRepository         repositories.TorentRepository
-	gedungRepository         repositories.GedungRepository
+type monitoringLogServiceImpl struct {
+	monitoringLogRepository repositories.MonitoringLogRepository
+	torentRepository        repositories.TorentRepository
+	gedungRepository        repositories.GedungRepository
 }
 
-func NewMonitoringDataService(monitorRepo repositories.MonitoringDataRepository,
-
+func NewMonitoringLogService(monitorRepo repositories.MonitoringLogRepository,
 	torent repositories.TorentRepository,
 	gedungRepo repositories.GedungRepository,
-) services.MonitoringDataService {
-	return &monitoringDataServiceImpl{monitorRepo, torent, gedungRepo}
-
+) services.MonitoringLogService {
+	return &monitoringLogServiceImpl{monitorRepo, torent, gedungRepo}
 }
 
-func (s *monitoringDataServiceImpl) SaveMonitoringData(request entities.CreateMonitoringDataRequest) (entities.MonitoringDataResponse, error) {
-	monitoringData := entities.MonitoringData{
+func (s *monitoringLogServiceImpl) SaveMonitoringLog(request entities.CreateMonitoringDataRequest) (entities.MonitoringDataResponse, error) {
+	monitoringLog := entities.MonitoringLog{
 		MonitoringName:  request.MonitoringName,
 		MonitoringValue: request.MonitoringValue,
 		IDGedung:        request.IDGedung,
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
-	createdData, err := s.monitoringDataRepository.SaveMonitoringData(monitoringData)
+	createdData, err := s.monitoringLogRepository.SaveMonitoringLog(monitoringLog)
 	if err != nil {
 		return entities.MonitoringDataResponse{}, err
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	response := entities.MonitoringDataResponse{
@@ -52,27 +48,19 @@ func (s *monitoringDataServiceImpl) SaveMonitoringData(request entities.CreateMo
 	return response, nil
 }
 
-func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.GetAirDataResponse, error) {
-	monitoringData, err := s.monitoringDataRepository.GetAirMonitoringData(id)
+func (s *monitoringLogServiceImpl) GetAirMonitoringData(id int) ([]entities.GetAirDataResponse, error) {
+	monitoringData, err := s.monitoringLogRepository.GetAirMonitoringData(id)
 	if err != nil {
 		return nil, err
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 	torenData, err := s.torentRepository.FindByGedungID(id)
 	if err != nil {
 		return nil, err
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
-	}
-	monitoringDataHarian, err := s.monitoringDataRepository.GetAirMonitoringDataHarian(id)
-	if err != nil {
-		return nil, err
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	gedungRepo, err := s.gedungRepository.FindByID(id)
 	if err != nil {
 		return nil, err
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	namaGedung := gedungRepo.NamaGedung
@@ -85,40 +73,49 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 	dataPenggunaanBulanan := make(map[string]map[string]float64)
 	dataPenggunaanTahunan := make(map[string]map[string]float64)
 
-	// --- Ambil data per jam dari monitoringData (hanya hari ini, hanya jam yang ada datanya) ---
+	// --- Ambil data terakhir per jam untuk setiap pipa (hanya hari ini) ---
 	today := time.Now().Format("2006-01-02")
-	// jam -> pipa -> volume
-	jamPipaVolume := make(map[string]map[string]string)
+
+	// jam -> pipa -> latest data
+	jamPipaLatest := make(map[string]map[string]entities.MonitoringLog)
 	for _, data := range monitoringData {
 		if strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_") && data.CreatedAt.Format("2006-01-02") == today {
-			pipa := strings.ReplaceAll(strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
-			volume := fmt.Sprintf("%.0f L", func() float64 {
-				v, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
-				return v
-			}())
 			hour := data.CreatedAt.Hour()
 			jamStr := fmt.Sprintf("%02d:00", hour)
-			if jamPipaVolume[jamStr] == nil {
-				jamPipaVolume[jamStr] = make(map[string]string)
+			pipa := data.MonitoringName
+
+			if jamPipaLatest[jamStr] == nil {
+				jamPipaLatest[jamStr] = make(map[string]entities.MonitoringLog)
 			}
-			jamPipaVolume[jamStr][pipa] = volume
+
+			// Simpan data terbaru berdasarkan CreatedAt untuk setiap jam dan pipa
+			if existing, exists := jamPipaLatest[jamStr][pipa]; !exists || data.CreatedAt.After(existing.CreatedAt) {
+				jamPipaLatest[jamStr][pipa] = data
+			}
 		}
 	}
-	// Build DataPenggunaanHarian hanya untuk jam yang ada datanya
-	for jamStr, pipaMap := range jamPipaVolume {
-		list := make([]entities.PenggunaanAir, 0, len(pipaMap))
-		for pipa, volume := range pipaMap {
-			list = append(list, entities.PenggunaanAir{
-				Pipa:   pipa,
-				Volume: volume,
-				// Hour bisa diambil dari jamStr jika dibutuhkan
+
+	// Build DataPenggunaanHarian dengan data terakhir per jam
+	for jamStr, pipaMap := range jamPipaLatest {
+		if len(pipaMap) > 0 {
+			list := make([]entities.PenggunaanAir, 0, len(pipaMap))
+			for _, data := range pipaMap {
+				pipa := strings.ReplaceAll(strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
+				volume := fmt.Sprintf("%.0f L", func() float64 {
+					v, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
+					return v
+				}())
+				list = append(list, entities.PenggunaanAir{
+					Pipa:   pipa,
+					Volume: volume,
+				})
+			}
+			// Sort ascending berdasarkan nama pipa
+			sort.Slice(list, func(i, j int) bool {
+				return list[i].Pipa < list[j].Pipa
 			})
+			dataPenggunaanHarian[jamStr] = list
 		}
-		// Sort ascending berdasarkan nama pipa
-		sort.Slice(list, func(i, j int) bool {
-			return list[i].Pipa < list[j].Pipa
-		})
-		dataPenggunaanHarian[jamStr] = list
 	}
 	latestWaterFlowMasuk := make(map[string]float64)
 	latestCreatedAtMasuk := make(map[string]time.Time)
@@ -215,63 +212,74 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 	startOfWeek := getStartOfWeek(now)
 	endOfWeek := getEndOfWeek(startOfWeek)
 
-	for _, harian := range monitoringDataHarian {
-		if strings.HasPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_") {
-			pipa := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
-			volume, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " L"), 64)
-			hari := getHariIndonesia(harian.CreatedAt.Weekday())
+	// Untuk menghindari redundansi, ambil data terakhir per hari untuk mingguan/bulanan/tahunan
+	dailyLatestData := make(map[string]map[string]entities.MonitoringLog) // tanggal -> pipa -> latest data
 
-			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
+	for _, data := range monitoringData {
+		if strings.HasPrefix(data.MonitoringName, "monitoring_air_total_water_flow_") {
+			dateStr := data.CreatedAt.Format("2006-01-02")
+			pipa := data.MonitoringName
+
+			if dailyLatestData[dateStr] == nil {
+				dailyLatestData[dateStr] = make(map[string]entities.MonitoringLog)
+			}
+
+			// Simpan data terbaru per hari untuk setiap pipa
+			if existing, exists := dailyLatestData[dateStr][pipa]; !exists || data.CreatedAt.After(existing.CreatedAt) {
+				dailyLatestData[dateStr][pipa] = data
+			}
+		}
+	}
+
+	// Process data untuk mingguan, bulanan, tahunan dari daily latest data
+	for dateStr, pipaMap := range dailyLatestData {
+		dateTime, _ := time.Parse("2006-01-02", dateStr)
+
+		for _, data := range pipaMap {
+			pipa := strings.ReplaceAll(strings.TrimPrefix(data.MonitoringName, "monitoring_air_total_water_flow_"), "_", " ")
+			volume, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " L"), 64)
+			hari := getHariIndonesia(dateTime.Weekday())
+
+			// Data mingguan
+			if dateTime.After(startOfWeek) && dateTime.Before(endOfWeek) {
 				dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanAir{
 					Pipa:   pipa,
 					Volume: fmt.Sprintf("%.0f L", volume),
 				})
 			}
 
-			// Hitung minggu dalam bulan dengan mempertimbangkan bahwa tanggal 1 tidak selalu hari Senin
-			// Dapatkan tanggal pertama dari bulan saat ini
-			firstOfMonth := time.Date(harian.CreatedAt.Year(), harian.CreatedAt.Month(), 1, 0, 0, 0, 0, harian.CreatedAt.Location())
-
-			// Hitung offset hari dalam minggu (0 = Minggu, 1 = Senin, ..., 6 = Sabtu)
-			// Menggunakan standar ISO: Senin = 1, Minggu = 0/7
+			// Data bulanan
+			firstOfMonth := time.Date(dateTime.Year(), dateTime.Month(), 1, 0, 0, 0, 0, dateTime.Location())
 			firstDayOffset := int(firstOfMonth.Weekday())
-			if firstDayOffset == 0 { // Jika Minggu, set ke 7 untuk perhitungan yang lebih mudah
+			if firstDayOffset == 0 {
 				firstDayOffset = 7
 			}
 
-			// Hitung hari ke berapa dalam bulan
-			dayOfMonth := harian.CreatedAt.Day()
-
-			// Hitung hari ke berapa dalam minggu pertama (dengan offset)
+			dayOfMonth := dateTime.Day()
 			adjustedDay := dayOfMonth + firstDayOffset - 1
-
-			// Hitung minggu (1-indexed)
 			minggu := (adjustedDay-1)/7 + 1
 
-			// Untuk memastikan data tanggal 12-18 masuk ke minggu 3
 			if dayOfMonth >= 12 && dayOfMonth <= 18 {
 				minggu = 3
 			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
-			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
+			if dateTime.Year() == year && dateTime.Month() == month {
 				if dataPenggunaanBulanan[mingguanKey] == nil {
 					dataPenggunaanBulanan[mingguanKey] = make(map[string]float64)
 				}
 				dataPenggunaanBulanan[mingguanKey][pipa] += volume
 			}
 
-			bulan := getBulanIndonesia(harian.CreatedAt.Month())
-
-			if harian.CreatedAt.Year() == year {
+			// Data tahunan
+			bulan := getBulanIndonesia(dateTime.Month())
+			if dateTime.Year() == year {
 				if dataPenggunaanTahunan[bulan] == nil {
 					dataPenggunaanTahunan[bulan] = make(map[string]float64)
 				}
 				dataPenggunaanTahunan[bulan][pipa] += volume
-
 			}
 		}
-		// Kita akan menghitung total daya nanti berdasarkan rata-rata arus per monitoring name
 	}
 
 	convertMingguanTahunan := func(data map[string]float64) []entities.PenggunaanAir {
@@ -329,13 +337,8 @@ func (s *monitoringDataServiceImpl) GetAirMonitoringData(id int) ([]entities.Get
 	return []entities.GetAirDataResponse{response}, nil
 }
 
-func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.GetListrikDataResponse, error) {
-	monitoringData, err := s.monitoringDataRepository.GetListrikMonitoringData(id)
-	if err != nil {
-		return entities.GetListrikDataResponse{}, err
-	}
-
-	monitoringDataHarian, err := s.monitoringDataRepository.GetListrikMonitoringDataHarian(id)
+func (s *monitoringLogServiceImpl) GetListrikMonitoringData(id int) (entities.GetListrikDataResponse, error) {
+	monitoringData, err := s.monitoringLogRepository.GetListrikMonitoringData(id)
 	if err != nil {
 		return entities.GetListrikDataResponse{}, err
 	}
@@ -374,6 +377,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 	today := time.Now().Format("2006-01-02")
 	jamArusValue := make(map[string]map[string]float64)
+	jamArusLatest := make(map[string]map[string]time.Time) // Track latest time for each monitoring per hour
 
 	for i, data := range monitoringData {
 		arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
@@ -392,8 +396,14 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 
 			if jamArusValue[jamStr] == nil {
 				jamArusValue[jamStr] = make(map[string]float64)
+				jamArusLatest[jamStr] = make(map[string]time.Time)
 			}
-			jamArusValue[jamStr][data.MonitoringName] = arus
+
+			// Only update if this is the latest data for this monitoring device in this hour
+			if lastTime, exists := jamArusLatest[jamStr][data.MonitoringName]; !exists || data.CreatedAt.After(lastTime) {
+				jamArusValue[jamStr][data.MonitoringName] = arus
+				jamArusLatest[jamStr][data.MonitoringName] = data.CreatedAt
+			}
 		}
 
 		if i == 0 || data.CreatedAt.Before(createdAt) {
@@ -461,41 +471,28 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 		totalWatt = energiKWh
 	}
 
-	totalWatt = 0
-	currentHour := float64(now.Hour())
-	if currentHour == 0 {
-		currentHour = 1
-	}
+	// Calculate TotalDayaListrik and BiayaPemakaian from DataPenggunaanListrikHarian
+	totalDayaPerNama := make(map[string]float64)
 
-	for key, totalArus := range totalArusPerName {
-		jumlahData := jumlahDataPerName[key]
-		if jumlahData > 0 {
-			rataRataArus := totalArus / float64(jumlahData)
-
-			var dayaKW float64
-			if jenisListrik == "1_phase" {
-				dayaKW = 220 * rataRataArus * 0.8 / 1000
-			} else if jenisListrik == "3_phase" {
-				dayaKW = 1.732 * 380 * rataRataArus * 0.8 / 1000
-			}
-
-			energiKWh := dayaKW * float64(len(dataPenggunaanHarian))
-
-			totalWatt += energiKWh
-
-			totalDaya = append(totalDaya, entities.TotalDayaListrik{
-				Nama:  strings.ReplaceAll(strings.TrimPrefix(key, "monitoring_listrik_arus_"), "_", " "),
-				Value: fmt.Sprintf("%.2f kW", energiKWh),
-			})
+	// Sum up all hourly data for each monitoring device
+	for _, penggunaanList := range dataPenggunaanHarian {
+		for _, penggunaan := range penggunaanList {
+			kwhStr := strings.TrimSuffix(penggunaan.Value, " kW")
+			kwh, _ := strconv.ParseFloat(kwhStr, 64)
+			totalDayaPerNama[penggunaan.Nama] += kwh
 		}
 	}
 
-	for _, dayaItem := range totalDaya {
-		nama := dayaItem.Nama
-		kwhStr := strings.TrimSuffix(dayaItem.Value, " kW")
-		kwh, _ := strconv.ParseFloat(kwhStr, 64)
-		biaya := kwh * tarifListrik
+	totalWatt = 0
+	for nama, totalKwh := range totalDayaPerNama {
+		totalWatt += totalKwh
 
+		totalDaya = append(totalDaya, entities.TotalDayaListrik{
+			Nama:  nama,
+			Value: fmt.Sprintf("%.2f kW", totalKwh),
+		})
+
+		biaya := totalKwh * tarifListrik
 		totalBiaya = append(totalBiaya, entities.BiayaListrik{
 			Nama:  nama,
 			Biaya: fmt.Sprintf("Rp. %.0f", biaya),
@@ -506,10 +503,86 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 	startOfWeek := getStartOfWeek(now)
 	endOfWeek := getEndOfWeek(startOfWeek)
 
-	// Proses data harian untuk mingguan, bulanan, dan tahunan
-	for _, harian := range monitoringDataHarian {
-		if strings.Contains(harian.MonitoringName, "arus_listrik") {
-			arus, _ := strconv.ParseFloat(strings.TrimSuffix(harian.MonitoringValue, " A"), 64)
+	// Untuk menghindari redundansi, ambil data terakhir per hari untuk mingguan/bulanan/tahunan
+	dailyLatestElectricData := make(map[string]map[string]entities.MonitoringLog) // tanggal -> monitoring -> latest data
+
+	for _, data := range monitoringData {
+		if strings.Contains(data.MonitoringName, "arus_listrik") {
+			dateStr := data.CreatedAt.Format("2006-01-02")
+			monitoringName := data.MonitoringName
+
+			if dailyLatestElectricData[dateStr] == nil {
+				dailyLatestElectricData[dateStr] = make(map[string]entities.MonitoringLog)
+			}
+
+			// Simpan data terbaru per hari untuk setiap monitoring
+			if existing, exists := dailyLatestElectricData[dateStr][monitoringName]; !exists || data.CreatedAt.After(existing.CreatedAt) {
+				dailyLatestElectricData[dateStr][monitoringName] = data
+			}
+		}
+	}
+
+	// Process data untuk mingguan, bulanan, tahunan dari daily latest data
+	todayStr := now.Format("2006-01-02")
+
+	for dateStr, monitoringMap := range dailyLatestElectricData {
+		dateTime, _ := time.Parse("2006-01-02", dateStr)
+		hari := getHariIndonesia(dateTime.Weekday())
+
+		// Special handling for today - use TotalDayaListrik values
+		if dateStr == todayStr && dateTime.After(startOfWeek) && dateTime.Before(endOfWeek) {
+			// Use the calculated TotalDayaListrik for today's weekly data
+			for _, dayaItem := range totalDaya {
+				dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanListrik{
+					Nama:  dayaItem.Nama,
+					Value: dayaItem.Value,
+				})
+			}
+			for _, biayaItem := range totalBiaya {
+				dataBiayaMingguan[hari] = append(dataBiayaMingguan[hari], entities.BiayaListrik{
+					Nama:  biayaItem.Nama,
+					Biaya: biayaItem.Biaya,
+				})
+			}
+		} else {
+			// For other days, use the normal calculation
+			for _, data := range monitoringMap {
+				arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
+				var kwh float64
+
+				if jenisListrik == "1_phase" {
+					jumlahSampel := 86400 / schadule
+					Rarus := arus / jumlahSampel
+					kw := 220 * Rarus * 0.8 / 1000
+					kwh = kw * 24
+
+				} else if jenisListrik == "3_phase" {
+					jumlahSampel := 86400 / schadule
+					Rarus := arus / jumlahSampel
+					kw := 1.732 * 380 * Rarus * 0.8 / 1000
+					kwh = kw * 24
+				}
+
+				nama := strings.ReplaceAll(strings.TrimPrefix(data.MonitoringName, "monitoring_listrik_arus_"), "_", " ")
+				biaya := kwh * tarifListrik
+
+				if dateTime.After(startOfWeek) && dateTime.Before(endOfWeek) {
+					dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanListrik{
+						Nama:  nama,
+						Value: fmt.Sprintf("%.2f kW", kwh),
+					})
+
+					dataBiayaMingguan[hari] = append(dataBiayaMingguan[hari], entities.BiayaListrik{
+						Nama:  nama,
+						Biaya: fmt.Sprintf("Rp. %.0f", biaya),
+					})
+				}
+			}
+		}
+
+		// Process monthly and yearly data normally for all days
+		for _, data := range monitoringMap {
+			arus, _ := strconv.ParseFloat(strings.TrimSuffix(data.MonitoringValue, " A"), 64)
 			var kwh float64
 
 			if jenisListrik == "1_phase" {
@@ -517,7 +590,6 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				Rarus := arus / jumlahSampel
 				kw := 220 * Rarus * 0.8 / 1000
 				kwh = kw * 24
-
 			} else if jenisListrik == "3_phase" {
 				jumlahSampel := 86400 / schadule
 				Rarus := arus / jumlahSampel
@@ -525,29 +597,16 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				kwh = kw * 24
 			}
 
-			nama := strings.ReplaceAll(strings.TrimPrefix(harian.MonitoringName, "monitoring_listrik_arus_"), "_", " ")
+			nama := strings.ReplaceAll(strings.TrimPrefix(data.MonitoringName, "monitoring_listrik_arus_"), "_", " ")
 			biaya := kwh * tarifListrik
 
-			hari := getHariIndonesia(harian.CreatedAt.Weekday())
-			if harian.CreatedAt.After(startOfWeek) && harian.CreatedAt.Before(endOfWeek) {
-				dataPenggunaanMingguan[hari] = append(dataPenggunaanMingguan[hari], entities.PenggunaanListrik{
-					Nama:  nama,
-					Value: fmt.Sprintf("%.2f kW", kwh),
-				})
-
-				dataBiayaMingguan[hari] = append(dataBiayaMingguan[hari], entities.BiayaListrik{
-					Nama:  nama,
-					Biaya: fmt.Sprintf("Rp. %.0f", biaya),
-				})
-			}
-
-			firstOfMonth := time.Date(harian.CreatedAt.Year(), harian.CreatedAt.Month(), 1, 0, 0, 0, 0, harian.CreatedAt.Location())
+			firstOfMonth := time.Date(dateTime.Year(), dateTime.Month(), 1, 0, 0, 0, 0, dateTime.Location())
 			firstDayOffset := int(firstOfMonth.Weekday())
 			if firstDayOffset == 0 {
 				firstDayOffset = 7
 			}
 
-			dayOfMonth := harian.CreatedAt.Day()
+			dayOfMonth := dateTime.Day()
 			adjustedDay := dayOfMonth + firstDayOffset - 1
 			minggu := (adjustedDay-1)/7 + 1
 
@@ -556,7 +615,7 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 			}
 			mingguanKey := fmt.Sprintf("Minggu %d", minggu)
 
-			if harian.CreatedAt.Year() == year && harian.CreatedAt.Month() == month {
+			if dateTime.Year() == year && dateTime.Month() == month {
 				if dataPenggunaanBulanan[mingguanKey] == nil {
 					dataPenggunaanBulanan[mingguanKey] = make(map[string]float64)
 				}
@@ -567,8 +626,8 @@ func (s *monitoringDataServiceImpl) GetListrikMonitoringData(id int) (entities.G
 				dataBiayaBulanan[mingguanKey][nama] += biaya
 			}
 
-			bulanHarian := getBulanIndonesia(harian.CreatedAt.Month())
-			if harian.CreatedAt.Year() == year {
+			bulanHarian := getBulanIndonesia(dateTime.Month())
+			if dateTime.Year() == year {
 				if dataPenggunaanTahunan[bulanHarian] == nil {
 					dataPenggunaanTahunan[bulanHarian] = make(map[string]float64)
 				}

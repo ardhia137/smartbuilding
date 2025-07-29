@@ -35,6 +35,20 @@ ALTER TABLE torent CHANGE id_setting id_gedung INT NOT NULL;
 -- ALTER TABLE torent DROP FOREIGN KEY IF EXISTS fk_torent_setting;
 -- ALTER TABLE torent ADD CONSTRAINT fk_torent_gedung FOREIGN KEY (id_gedung) REFERENCES gedung(id);
 
+-- 8.1. Fix foreign key constraint issues
+-- Temporarily disable foreign key checks
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Check and fix orphaned records in hak_akses table
+-- Delete hak_akses records that reference non-existent users
+DELETE FROM hak_akses WHERE user_id NOT IN (SELECT id FROM user);
+
+-- Check and fix orphaned records that reference non-existent gedung
+DELETE FROM hak_akses WHERE gedung_id NOT IN (SELECT id FROM gedung);
+
+-- Re-enable foreign key checks
+SET FOREIGN_KEY_CHECKS = 1;
+
 -- Verifikasi hasil migration
 SHOW TABLES;
 DESCRIBE gedung;
@@ -42,3 +56,35 @@ DESCRIBE torent;
 DESCRIBE hak_akses;
 DESCRIBE monitoring_data;
 DESCRIBE monitoring_data_harian;
+
+-- 9. Merge monitoring_data and monitoring_data_harian tables into monitoring_logs
+-- First, create the new monitoring_logs table
+CREATE TABLE monitoring_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    monitoring_name VARCHAR(255) NOT NULL,
+    monitoring_value VARCHAR(50) NOT NULL,
+    id_gedung INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_monitoring_logs_gedung (id_gedung),
+    INDEX idx_monitoring_logs_name (monitoring_name),
+    FOREIGN KEY (id_gedung) REFERENCES gedung(id)
+);
+
+-- Copy data from monitoring_data to monitoring_logs
+INSERT INTO monitoring_logs (monitoring_name, monitoring_value, id_gedung, created_at, updated_at)
+SELECT monitoring_name, monitoring_value, id_gedung, created_at, updated_at
+FROM monitoring_data;
+
+-- Copy data from monitoring_data_harian to monitoring_logs
+INSERT INTO monitoring_logs (monitoring_name, monitoring_value, id_gedung, created_at, updated_at)
+SELECT monitoring_name, monitoring_value, id_gedung, created_at, updated_at
+FROM monitoring_data_harian;
+
+-- Drop the old tables after data migration
+-- DROP TABLE monitoring_data;
+-- DROP TABLE monitoring_data_harian;
+
+-- Verify the new table
+DESCRIBE monitoring_logs;
+SELECT COUNT(*) as total_records FROM monitoring_logs;

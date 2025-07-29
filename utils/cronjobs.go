@@ -39,7 +39,7 @@ func init() {
 	lastHaosToken = make(map[int]string)
 }
 
-func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, gedungUseCase usecases.GedungUseCase, monitoringDataRepo repositories.MonitoringDataRepository, gedungRepo repositories.GedungRepository) {
+func StartMonitoringLogJob(useCase usecases.MonitoringLogUseCase, gedungUseCase usecases.GedungUseCase, monitoringLogRepo repositories.MonitoringLogRepository, gedungRepo repositories.GedungRepository) {
 	c = cron.New()
 
 	// Inisialisasi cron jobs untuk semua settings
@@ -76,7 +76,7 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, gedungUseCas
 
 	// Jadwalkan rekap harian
 	_, err = c.AddFunc("59 23 * * *", func() {
-		rekapHarian(monitoringDataRepo, gedungRepo)
+		rekapHarian(monitoringLogRepo, gedungRepo)
 	})
 	if err != nil {
 		fmt.Println("Error scheduling daily recap job:", err)
@@ -90,71 +90,118 @@ func StartMonitoringDataJob(useCase usecases.MonitoringDataUseCase, gedungUseCas
 	select {}
 }
 
-func rekapHarian(monitoringDataRepo repositories.MonitoringDataRepository, gedungRepo repositories.GedungRepository) {
+func rekapHarian(monitoringLogRepo repositories.MonitoringLogRepository, gedungRepo repositories.GedungRepository) {
 	fmt.Println("Starting daily recap at:", time.Now().Format("2006-01-02 15:04:05"))
 
-	monitoringData, err := monitoringDataRepo.FindAll()
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	// Tentukan waktu cut-off saat proses dimulai (untuk menghindari race condition)
+	cutoffTime := now
+
+	monitoringData, err := monitoringLogRepo.FindAll()
 	if err != nil {
 		fmt.Println("Error fetching monitoring data:", err)
 		return
 	}
 
+	// Filter data hanya untuk hari ini yang created_at sebelum waktu cut-off
 	gedungDataMap := make(map[uint]map[string][]float64)
+	var todayDataIDs []uint // Simpan ID yang akan dihapus
 
 	for _, data := range monitoringData {
-		cleanedValue := removeUnits(data.MonitoringValue)
-		value, err := strconv.ParseFloat(cleanedValue, 64)
-		if err != nil {
-			fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
-			continue
-		}
+		// Ambil data hari ini yang created_at sebelum cutoff time DAN bukan data rekap (bukan jam 23:59:59)
+		if data.CreatedAt.Format("2006-01-02") == today &&
+			data.CreatedAt.Before(cutoffTime) &&
+			!(data.CreatedAt.Hour() == 23 && data.CreatedAt.Minute() == 59 && data.CreatedAt.Second() == 59) {
 
-		if _, ok := gedungDataMap[data.IDGedung]; !ok {
-			gedungDataMap[data.IDGedung] = make(map[string][]float64)
-		}
+			todayDataIDs = append(todayDataIDs, data.ID)
 
-		// Simpan nilai berdasarkan MonitoringName
-		gedungDataMap[data.IDGedung][data.MonitoringName] = append(gedungDataMap[data.IDGedung][data.MonitoringName], value)
+			cleanedValue := removeUnits(data.MonitoringValue)
+			value, err := strconv.ParseFloat(cleanedValue, 64)
+			if err != nil {
+				fmt.Printf("Error parsing value for %s: %v\n", data.MonitoringName, err)
+				continue
+			}
+
+			if _, ok := gedungDataMap[data.IDGedung]; !ok {
+				gedungDataMap[data.IDGedung] = make(map[string][]float64)
+			}
+
+			// Simpan nilai berdasarkan MonitoringName
+			gedungDataMap[data.IDGedung][data.MonitoringName] = append(gedungDataMap[data.IDGedung][data.MonitoringName], value)
+		}
 	}
+
+	// Buat rekap rata-rata dan siapkan untuk bulk insert
+	var bulkRekapData []entities.MonitoringLog
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
 
 	for idGedung, monitoringMap := range gedungDataMap {
 		for monitoringName, values := range monitoringMap {
-			total := 0.0
+			var average float64
 
 			if strings.HasPrefix(monitoringName, "monitoring_air_total_water_flow_") {
+				// Untuk water flow, ambil nilai terakhir bukan rata-rata
 				if len(values) > 0 {
-					total = values[len(values)-1]
+					average = values[len(values)-1]
 				}
 			} else {
+				// Untuk monitoring lainnya, hitung rata-rata
+				total := 0.0
 				for _, val := range values {
 					total += val
 				}
+				if len(values) > 0 {
+					average = total / float64(len(values))
+				}
 			}
 
-			harianData := entities.MonitoringData{
+			// Tambahkan ke bulk data
+			rekapData := entities.MonitoringLog{
 				MonitoringName:  monitoringName,
-				MonitoringValue: fmt.Sprintf("%.2f", total),
+				MonitoringValue: fmt.Sprintf("%.2f", average),
 				IDGedung:        idGedung,
-				CreatedAt:       time.Now(),
-				UpdatedAt:       time.Now(),
+				CreatedAt:       endOfDay,
+				UpdatedAt:       endOfDay,
 			}
 
-			_, err := monitoringDataRepo.SaveHarianData(harianData)
-			if err != nil {
-				fmt.Printf("Error saving harian data for %s (IDGedung %d): %v\n", monitoringName, idGedung, err)
-			}
+			bulkRekapData = append(bulkRekapData, rekapData)
 		}
 	}
 
-	// Hapus data setelah direkap
-	err = monitoringDataRepo.Truncate()
-	if err != nil {
-		fmt.Printf("Error truncating data: %v\n", err)
+	// Bulk insert semua data rekap sekaligus
+	if len(bulkRekapData) > 0 {
+		err = monitoringLogRepo.BulkSaveMonitoringLogs(bulkRekapData)
+		if err != nil {
+			fmt.Printf("Error bulk saving recap data: %v\n", err)
+			return
+		}
+		fmt.Printf("Successfully saved %d recap records\n", len(bulkRekapData))
+	}
+
+	// Hapus data berdasarkan ID yang sudah dikumpulkan (sebelum cutoff time)
+	if len(todayDataIDs) > 0 {
+		err = deleteTodayData(monitoringLogRepo, todayDataIDs)
+		if err != nil {
+			fmt.Printf("Error deleting today's data: %v\n", err)
+		} else {
+			fmt.Printf("Deleted %d records from today\n", len(todayDataIDs))
+		}
 	}
 
 	fmt.Println("Daily recap completed at:", time.Now().Format("2006-01-02 15:04:05"))
 }
-func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, gedungUseCase usecases.GedungUseCase) {
+
+func deleteTodayData(monitoringLogRepo repositories.MonitoringLogRepository, ids []uint) error {
+	err := monitoringLogRepo.DeleteByIDs(ids)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Successfully deleted %d records from today\n", len(ids))
+	return nil
+}
+func monitorSchedulerChanges(useCase usecases.MonitoringLogUseCase, gedungUseCase usecases.GedungUseCase) {
 	for {
 		gedung, err := gedungUseCase.GetAllCornJobs()
 		if err != nil {
@@ -209,7 +256,7 @@ func monitorSchedulerChanges(useCase usecases.MonitoringDataUseCase, gedungUseCa
 	}
 }
 
-func runJob(useCase usecases.MonitoringDataUseCase, gedung entities.Gedung) {
+func runJob(useCase usecases.MonitoringLogUseCase, gedung entities.Gedung) {
 	apiURL := gedung.HaosURL
 	token := gedung.HaosToken
 	namaGedung := gedung.NamaGedung
@@ -291,9 +338,9 @@ func runJob(useCase usecases.MonitoringDataUseCase, gedung entities.Gedung) {
 			IDGedung:        uint(gedung.ID), // Tambahkan GedungID ke request
 		}
 		if !strings.Contains(request.MonitoringValue, "unavailable") {
-			_, err := useCase.SaveMonitoringData(request)
+			_, err := useCase.SaveMonitoringLog(request)
 			if err != nil {
-				fmt.Printf("Error saving monitoring data (%s) for gedung ID %d: %v\n", key, gedung.ID, err)
+				fmt.Printf("Error saving monitoring log (%s) for gedung ID %d: %v\n", key, gedung.ID, err)
 			}
 		}
 	}

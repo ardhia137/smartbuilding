@@ -45,11 +45,11 @@ func main() {
 	gedungUsecase := usecases.GedungUseCase(gedungService)
 	gedungController := controllers.NewGedungController(gedungUsecase)
 
-	log.Println("Initializing monitoring data repository, service, and use case...")
-	monitoringDataRepository := repositories.NewMonitoringDataRepository(config.DB)
-	monitoringDataService := services.NewMonitoringDataService(monitoringDataRepository, torentRepository, gedungRepository)
-	monitoringDataUsecase := usecases.MonitoringDataUseCase(monitoringDataService)
-	monitoringDataController := controllers.NewMonitoringDataController(monitoringDataUsecase, hakAksesUsecase)
+	log.Println("Initializing monitoring log repository, service, and use case...")
+	monitoringLogRepository := repositories.NewMonitoringLogRepository(config.DB)
+	monitoringLogService := services.NewMonitoringLogService(monitoringLogRepository, torentRepository, gedungRepository)
+	monitoringLogUsecase := usecases.MonitoringLogUseCase(monitoringLogService)
+	monitoringLogController := controllers.NewMonitoringLogController(monitoringLogUsecase, hakAksesUsecase)
 
 	log.Println("Initializing auth repository, service, and use case...")
 	authRepository := repositories.NewAuthRepository(config.DB)
@@ -57,8 +57,8 @@ func main() {
 	authUsecase := usecases.AuthUseCase(authService)
 	authController := controllers.NewAuthController(authUsecase)
 
-	log.Println("Starting Monitoring Data cron job in the background...")
-	go utils.StartMonitoringDataJob(monitoringDataUsecase, gedungUsecase, monitoringDataRepository, gedungRepository)
+	log.Println("Starting Monitoring Log cron job in the background...")
+	go utils.StartMonitoringLogJob(monitoringLogUsecase, gedungUsecase, monitoringLogRepository, gedungRepository)
 
 	log.Println("Setting up routes...")
 	router := gin.Default()
@@ -76,7 +76,7 @@ func main() {
 	})
 	infrastructure.RegisterUserRoutes(router, userController)
 	infrastructure.RegisterAuthRoutes(router, authController)
-	infrastructure.RegisterMonitoringDataRoutes(router, monitoringDataController)
+	infrastructure.RegisterMonitoringLogRoutes(router, monitoringLogController)
 	infrastructure.RegisterGedungRoutes(router, gedungController)
 	infrastructure.RegisterTorentRoutes(router, torentController)
 	infrastructure.RegisterHakAksesRoutes(router, hakAksesController)

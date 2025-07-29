@@ -39,12 +39,12 @@ func RegisterAuthRoutes(router *gin.Engine, authController *controllers.AuthCont
 
 }
 
-func RegisterMonitoringDataRoutes(router *gin.Engine, monitoringDataController *controllers.MonitoringDataController) {
+func RegisterMonitoringLogRoutes(router *gin.Engine, monitoringLogController *controllers.MonitoringLogController) {
 	apiRoutes := router.Group("/api")
 	apiRoutes.Use(utils.RoleMiddleware("admin", "manajement", "pengelola"), utils.UserIDMiddleware())
 	{
-		apiRoutes.GET("/monitoring_air/:id", monitoringDataController.GetAirMonitoringData)
-		apiRoutes.GET("/monitoring_listrik/:id", monitoringDataController.GetListrikMonitoringData)
+		apiRoutes.GET("/monitoring_air/:id", monitoringLogController.GetAirMonitoringData)
+		apiRoutes.GET("/monitoring_listrik/:id", monitoringLogController.GetListrikMonitoringData)
 
 	}
 }

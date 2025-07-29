@@ -16,7 +16,7 @@ export const options = {
 
 // Test function yang akan dijalankan oleh setiap virtual user
 export default function () {
-    const url = 'http://api.ardhia137.my.id/api/auth/login';
+    const url = 'http://localhost:1312/api/auth/login';
 
     const payload = JSON.stringify({
         email: 'admin@gmail.com',
